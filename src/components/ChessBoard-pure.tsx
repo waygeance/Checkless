@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import type { Api } from "chessground/api";
 import type { Key } from "chessground/types";
 
@@ -15,6 +15,7 @@ interface ChessBoardProps {
   onMove: (from: string, to: string) => void;
   canMove: boolean;
   lastMove?: [string, string];
+  syncToken: number;
 }
 
 export function ChessBoardPure({
@@ -23,26 +24,37 @@ export function ChessBoardPure({
   onMove,
   canMove,
   lastMove,
+  syncToken,
 }: ChessBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const cgRef = useRef<Api | null>(null);
+  const handleMove = useEffectEvent((orig: Key, dest: Key) => {
+    onMove(orig, dest);
+  });
 
   useEffect(() => {
-    if (!boardRef.current) return;
+    const boardElement = boardRef.current;
+
+    if (!boardElement) return;
+
+    let disposed = false;
 
     // Dynamically import chessground to avoid SSR issues
-    import("chessground").then(({ Chessground }) => {
-      cgRef.current = Chessground(boardRef.current!, {
+    void import("chessground").then(({ Chessground }) => {
+      if (disposed) return;
+
+      cgRef.current = Chessground(boardElement, {
         fen,
         orientation,
+        turnColor: orientation,
         coordinates: true,
         movable: {
-          free: true, // Allow free movement - server validates legality
+          free: true,
           color: canMove ? orientation : undefined,
           showDests: false,
           events: {
             after: (orig: Key, dest: Key) => {
-              onMove(orig, dest);
+              handleMove(orig, dest);
             },
           },
         },
@@ -62,8 +74,11 @@ export function ChessBoardPure({
     });
 
     return () => {
+      disposed = true;
+
       if (cgRef.current) {
         cgRef.current.destroy();
+        cgRef.current = null;
       }
     };
   }, []);
@@ -71,19 +86,18 @@ export function ChessBoardPure({
   useEffect(() => {
     if (!cgRef.current) return;
 
-    import("chessground").then(() => {
-      cgRef.current?.set({
-        fen,
-        orientation,
-        lastMove: (lastMove as [Key, Key]) || undefined,
-        movable: {
-          free: true,
-          color: canMove ? orientation : undefined,
-          showDests: false,
-        },
-      });
+    cgRef.current.set({
+      fen,
+      orientation,
+      turnColor: orientation,
+      lastMove: (lastMove as [Key, Key]) || undefined,
+      movable: {
+        free: true,
+        color: canMove ? orientation : undefined,
+        showDests: false,
+      },
     });
-  }, [fen, canMove, lastMove, orientation]);
+  }, [fen, canMove, lastMove, orientation, syncToken]);
 
   return (
     <div className="relative">
@@ -98,7 +112,7 @@ export function ChessBoardPure({
       />
 
       {!canMove && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-sm bg-black/40 pointer-events-none">
           <div className="bg-yellow-400 text-black px-8 py-4 rounded-xl font-bold text-xl shadow-2xl">
             ⏱️ Waiting for timer...
           </div>

@@ -296,6 +296,7 @@ export default function Game() {
                     : gameState.blackCanMove)
                 }
                 lastMove={gameState.lastMove}
+                syncToken={gameState.boardSyncToken}
               />
             </div>
 

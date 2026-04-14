@@ -7,6 +7,12 @@ class SimultaneousChess {
   constructor(fen) {
     this.board = [];
     this.moveHistory = [];
+    this.castlingRights = {
+      whiteKingside: true,
+      whiteQueenside: true,
+      blackKingside: true,
+      blackQueenside: true,
+    };
 
     if (fen) {
       this.loadFen(fen);
@@ -36,7 +42,16 @@ class SimultaneousChess {
       if (empty > 0) rowStr += empty;
       rows.push(rowStr);
     }
-    return rows.join("/") + " w KQkq - 0 1";
+
+    // Castling rights
+    let castling = "";
+    if (this.castlingRights.whiteKingside) castling += "K";
+    if (this.castlingRights.whiteQueenside) castling += "Q";
+    if (this.castlingRights.blackKingside) castling += "k";
+    if (this.castlingRights.blackQueenside) castling += "q";
+    if (castling === "") castling = "-";
+
+    return rows.join("/") + " w " + castling + " - 0 1";
   }
 
   // Proper FEN parser that handles number compression
@@ -63,6 +78,18 @@ class SimultaneousChess {
         }
       }
     }
+
+    // Parse castling rights if available
+    if (parts.length >= 3 && parts[2] !== "-") {
+      const castling = parts[2];
+      this.castlingRights = {
+        whiteKingside: castling.includes("K"),
+        whiteQueenside: castling.includes("Q"),
+        blackKingside: castling.includes("k"),
+        blackQueenside: castling.includes("q"),
+      };
+    }
+
     return true;
   }
 
@@ -205,14 +232,49 @@ class SimultaneousChess {
         );
 
       case "K":
-        return ard <= 1 && acd <= 1 && ard + acd > 0;
+        // Regular king move
+        if (ard <= 1 && acd <= 1 && ard + acd > 0) return true;
+
+        // Castling (kingside and queenside)
+        if (ard === 0 && acd === 2) {
+          const kingside = ti.col > fi.col;
+          const backRank = color === "w" ? 7 : 0;
+          if (fi.row !== backRank || ti.row !== backRank) return false;
+
+          // Check if castling rights are available
+          if (color === "w") {
+            if (kingside && !this.castlingRights.whiteKingside) return false;
+            if (!kingside && !this.castlingRights.whiteQueenside) return false;
+          } else {
+            if (kingside && !this.castlingRights.blackKingside) return false;
+            if (!kingside && !this.castlingRights.blackQueenside) return false;
+          }
+
+          // Check if path is clear
+          if (kingside) {
+            // Kingside: check f and g files
+            if (this.board[backRank][5] || this.board[backRank][6])
+              return false;
+          } else {
+            // Queenside: check b, c, d files
+            if (
+              this.board[backRank][1] ||
+              this.board[backRank][2] ||
+              this.board[backRank][3]
+            )
+              return false;
+          }
+
+          return true;
+        }
+        return false;
 
       default:
         return false;
     }
   }
 
-  // Execute a move. Returns { valid, from, to, piece, captured, promotion } or { valid: false, reason }
+  // Execute a move. Returns { valid, from, to, piece, captured, promotion, kingCapture, castling } or { valid: false, reason }
   move(moveObj, color) {
     const from =
       typeof moveObj === "string" ? moveObj.substring(0, 2) : moveObj.from;
@@ -228,9 +290,64 @@ class SimultaneousChess {
     const piece = this.board[fi.row][fi.col];
     const captured = this.board[ti.row][ti.col]; // capture BEFORE moving
 
+    // Check for king capture
+    const isKingCapture = captured === "K" || captured === "k";
+
+    // Check for castling
+    const isCastling =
+      piece.toUpperCase() === "K" && Math.abs(ti.col - fi.col) === 2;
+    let castlingMove = null;
+
+    if (isCastling) {
+      const kingside = ti.col > fi.col;
+      const backRank = color === "w" ? 7 : 0;
+
+      if (kingside) {
+        // Kingside castling: move rook from h to f
+        this.board[backRank][5] = this.board[backRank][7]; // rook to f
+        this.board[backRank][7] = ""; // clear h
+        castlingMove = {
+          rookFrom: "h" + (8 - backRank),
+          rookTo: "f" + (8 - backRank),
+        };
+      } else {
+        // Queenside castling: move rook from a to d
+        this.board[backRank][3] = this.board[backRank][0]; // rook to d
+        this.board[backRank][0] = ""; // clear a
+        castlingMove = {
+          rookFrom: "a" + (8 - backRank),
+          rookTo: "d" + (8 - backRank),
+        };
+      }
+    }
+
     // Move piece
     this.board[ti.row][ti.col] = piece;
     this.board[fi.row][fi.col] = "";
+
+    // If king was captured, place the captured piece ON the king
+    if (isKingCapture) {
+      // The captured piece is now ON the king square
+      // We'll represent this by keeping the captured piece info
+    }
+
+    // Update castling rights when king or rooks move
+    if (piece === "K") {
+      this.castlingRights.whiteKingside = false;
+      this.castlingRights.whiteQueenside = false;
+    }
+    if (piece === "k") {
+      this.castlingRights.blackKingside = false;
+      this.castlingRights.blackQueenside = false;
+    }
+    if (piece === "R") {
+      if (from === "a1") this.castlingRights.whiteQueenside = false;
+      if (from === "h1") this.castlingRights.whiteKingside = false;
+    }
+    if (piece === "r") {
+      if (from === "a8") this.castlingRights.blackQueenside = false;
+      if (from === "h8") this.castlingRights.blackKingside = false;
+    }
 
     // Auto-queen promotion
     let promotion = null;
@@ -253,7 +370,16 @@ class SimultaneousChess {
       timestamp: Date.now(),
     });
 
-    return { valid: true, from, to, piece, captured, promotion };
+    return {
+      valid: true,
+      from,
+      to,
+      piece,
+      captured,
+      promotion,
+      kingCapture: isKingCapture,
+      castling: castlingMove,
+    };
   }
 
   // Get all legal destination squares for a piece (for Chessground dests)

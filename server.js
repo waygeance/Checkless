@@ -6,7 +6,10 @@ const { SimultaneousChess } = require("./chess-engine");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "http://localhost:3000", credentials: true },
+  cors: {
+    origin: "*", // This tells the server: "Allow anyone to connect!"
+    methods: ["GET", "POST"],
+  },
 });
 
 const games = new Map();
@@ -158,6 +161,8 @@ io.on("connection", (socket) => {
       io.to(gameId).emit("game_over", {
         reason: "KING_CAPTURED",
         winner: playerColor,
+        capturedPiece: result.captured,
+        capturedBy: result.piece,
       });
       games.delete(gameId);
       return;
@@ -170,6 +175,7 @@ io.on("connection", (socket) => {
         to: result.to,
         piece: result.piece,
         promotion: result.promotion,
+        captured: result.captured,
       },
       fen: game.chess.fen(),
       movedBy: playerColor,

@@ -11,6 +11,7 @@
     "dev:full": "concurrently \"npm run server\" \"npm run dev\""
   },
   "dependencies": {
+    "canvas-confetti": "^1.9.4",
     "chessground": "^8.3.0",
     "concurrently": "^9.2.1",
     "express": "^5.2.1",

@@ -590,8 +590,8 @@ export default function Game({
               </div>
             </section>
 
-            <aside className="xl:sticky xl:top-28 xl:max-h-[calc(100vh-8rem)] xl:self-start">
-              <div className="panel-scroll flex flex-col gap-5 xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto xl:pr-2">
+            <aside className="xl:self-start">
+              <div className="flex flex-col gap-5">
                 <Timer
                   value={gameState.whiteTimer}
                   maxValue={maxTimerValue}
@@ -635,21 +635,6 @@ export default function Game({
                         {premove ? `${premove.from} -> ${premove.to}` : "None"}
                       </span>
                     </div>
-                  </div>
-                </SurfaceCard>
-
-                <SurfaceCard title="Rules" eyebrow="Variant Core">
-                  <div className="space-y-4 text-sm leading-relaxed text-cream-muted">
-                    {formatRules.map((rule) => {
-                      const Icon = rule.icon;
-
-                      return (
-                        <div key={rule.text} className="flex items-start gap-3">
-                          <Icon className="mt-0.5 h-4 w-4 text-lime" />
-                          <p>{rule.text}</p>
-                        </div>
-                      );
-                    })}
                   </div>
                 </SurfaceCard>
 

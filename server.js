@@ -249,11 +249,36 @@ io.on("connection", (socket) => {
     // Check for king capture (either 'k' or 'K')
     if (result.captured === "k" || result.captured === "K") {
       game.status = "finished";
+      const finalMove = {
+        from: result.from,
+        to: result.to,
+        piece: result.piece,
+        promotion: result.promotion,
+        captured: result.captured,
+      };
+      const finalTimers = {
+        white: game.players.white.timerValue,
+        black: game.players.black.timerValue,
+      };
+      const finalFen = game.chess.fen();
+
+      io.to(gameId).emit("move_made", {
+        move: finalMove,
+        fen: finalFen,
+        movedBy: playerColor,
+        timers: finalTimers,
+        whiteCanMove: false,
+        blackCanMove: false,
+      });
+
       io.to(gameId).emit("game_over", {
         reason: "KING_CAPTURED",
         winner: playerColor,
         capturedPiece: result.captured,
         capturedBy: result.piece,
+        fen: finalFen,
+        move: finalMove,
+        timers: finalTimers,
       });
       games.delete(gameId);
       return;

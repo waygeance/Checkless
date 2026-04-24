@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { io, Socket } from "socket.io-client";
 import { ChessBoardPure } from "./ChessBoard-pure";
+import { clearConfetti, initConfetti } from "./confetti";
 import { PlayModeGrid } from "./PlayModeGrid";
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
@@ -41,6 +42,13 @@ interface VictoryState {
   winner: "white" | "black";
   capturedPiece: string;
   capturedBy: string;
+}
+
+interface VictoryAnimationState {
+  square: string | null;
+  showConfetti: boolean;
+  lockedFen: string;
+  lockedMove: [string, string] | null;
 }
 
 interface Premove {
@@ -122,6 +130,8 @@ export default function Game({
   const [socket, setSocket] = useState<Socket | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const autoStartQueuedRef = useRef(false);
+  const victorySequenceTimeoutsRef = useRef<number[]>([]);
+  const lastResolvedMoveRef = useRef<[string, string] | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<
     | "connecting"
@@ -136,7 +146,40 @@ export default function Game({
   const [victoryState, setVictoryState] = useState<VictoryState>(
     emptyVictoryState(),
   );
+  const [victoryAnimation, setVictoryAnimation] =
+    useState<VictoryAnimationState | null>(null);
   const [premove, setPremove] = useState<Premove | null>(null);
+
+  const clearVictorySequenceTimers = () => {
+    victorySequenceTimeoutsRef.current.forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    victorySequenceTimeoutsRef.current = [];
+  };
+
+  const resetVictoryPresentation = () => {
+    clearVictorySequenceTimers();
+    lastResolvedMoveRef.current = null;
+    setVictoryAnimation(null);
+    setVictoryState(emptyVictoryState());
+  };
+
+  useEffect(() => {
+    return () => {
+      clearVictorySequenceTimers();
+      clearConfetti();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!victoryAnimation?.showConfetti) return;
+
+    void initConfetti({ cannons: true, fireworks: true });
+
+    return () => {
+      clearConfetti();
+    };
+  }, [victoryAnimation?.showConfetti]);
 
   useEffect(() => {
     const newSocket = io(SOCKET_URL, {
@@ -150,15 +193,18 @@ export default function Game({
       setSocket(newSocket);
       socketRef.current = newSocket;
       setConnectionStatus("connected");
+      resetVictoryPresentation();
       setMessage("");
     });
 
     newSocket.on("connect_error", () => {
+      resetVictoryPresentation();
       setConnectionStatus("disconnected");
       setMessage("Failed to connect to the game server.");
     });
 
     newSocket.on("disconnect", () => {
+      resetVictoryPresentation();
       setConnectionStatus("disconnected");
       setMessage("Disconnected from the game server.");
     });
@@ -171,7 +217,7 @@ export default function Game({
     newSocket.on("match_aborted", (data) => {
       setPremove(null);
       setGameState(null);
-      setVictoryState(emptyVictoryState());
+      resetVictoryPresentation();
       setConnectionStatus("connected");
       setMessage(data?.message ?? "Match aborted. You are back in the lobby.");
     });
@@ -180,7 +226,7 @@ export default function Game({
       const activeVariant = data.variant as Variant;
 
       setPremove(null);
-      setVictoryState(emptyVictoryState());
+      resetVictoryPresentation();
       setVariant(activeVariant);
       setGameState({
         gameId: data.gameId,
@@ -195,6 +241,7 @@ export default function Game({
         blackCanMove: false,
         boardSyncToken: 0,
       });
+      lastResolvedMoveRef.current = null;
       setConnectionStatus("playing");
       setMessage("");
     });
@@ -229,6 +276,10 @@ export default function Game({
     });
 
     newSocket.on("move_made", (data) => {
+      if (data.move?.from && data.move?.to) {
+        lastResolvedMoveRef.current = [data.move.from, data.move.to];
+      }
+
       setGameState((prev) =>
         prev
           ? {
@@ -258,11 +309,9 @@ export default function Game({
     });
 
     newSocket.on("game_over", (data) => {
+      clearVictorySequenceTimers();
       setPremove(null);
       setConnectionStatus("game_over");
-      setGameState((prev) =>
-        prev ? { ...prev, fen: data.fen ?? prev.fen } : prev,
-      );
 
       const resultMessage =
         data.reason === "KING_CAPTURED"
@@ -273,16 +322,65 @@ export default function Game({
               ? "Opponent disconnected."
               : "Game over.";
 
-      setMessage(resultMessage);
+      setMessage(data.reason === "KING_CAPTURED" ? "" : resultMessage);
 
       if (data.reason === "KING_CAPTURED") {
-        setVictoryState({
-          show: true,
-          winner: data.winner,
-          capturedPiece: data.capturedPiece,
-          capturedBy: data.capturedBy,
+        const resolvedMove =
+          data.move?.from && data.move?.to
+            ? ([data.move.from, data.move.to] as [string, string])
+            : lastResolvedMoveRef.current;
+        const victorySquare = resolvedMove?.[1] ?? null;
+
+        if (resolvedMove) {
+          lastResolvedMoveRef.current = resolvedMove;
+        }
+
+        setGameState((prev) =>
+          prev
+            ? {
+                ...prev,
+                fen: data.fen ?? prev.fen,
+                lastMove: resolvedMove ?? prev.lastMove,
+                whiteTimer: data.timers?.white ?? prev.whiteTimer,
+                blackTimer: data.timers?.black ?? prev.blackTimer,
+                whiteCanMove: false,
+                blackCanMove: false,
+                capturedPiece: data.capturedPiece ?? prev.capturedPiece,
+              }
+            : prev,
+        );
+
+        setVictoryAnimation({
+          square: victorySquare,
+          showConfetti: false,
+          lockedFen: data.fen ?? gameState?.fen ?? "",
+          lockedMove: resolvedMove ?? null,
         });
+
+        const confettiTimeout = window.setTimeout(() => {
+          setVictoryAnimation((current) =>
+            current ? { ...current, showConfetti: true } : current,
+          );
+        }, 650);
+
+        const modalTimeout = window.setTimeout(() => {
+          setVictoryState({
+            show: true,
+            winner: data.winner,
+            capturedPiece: data.capturedPiece,
+            capturedBy: data.capturedBy,
+          });
+        }, 2650);
+
+        victorySequenceTimeoutsRef.current = [
+          confettiTimeout,
+          modalTimeout,
+        ];
       } else {
+        setVictoryAnimation(null);
+        setGameState((prev) =>
+          prev ? { ...prev, fen: data.fen ?? prev.fen } : prev,
+        );
         setVictoryState(emptyVictoryState());
       }
     });
@@ -354,7 +452,7 @@ export default function Game({
   const handleReturnToLobby = () => {
     setPremove(null);
     setGameState(null);
-    setVictoryState(emptyVictoryState());
+    resetVictoryPresentation();
     setConnectionStatus("connected");
     setMessage("");
   };
@@ -369,9 +467,19 @@ export default function Game({
     Boolean(gameState) &&
     (connectionStatus === "playing" || connectionStatus === "game_over");
   const waitingMessage = message || "Searching for opponent...";
+  const showCelebrationConfetti =
+    Boolean(victoryAnimation?.showConfetti) || victoryState.show;
 
   return (
     <div className="min-h-screen bg-espresso text-cream">
+      {showCelebrationConfetti && (
+        <canvas
+          id="confetti"
+          className="pointer-events-none fixed inset-0 z-40"
+          style={{ width: "100%", height: "100%" }}
+        />
+      )}
+
       <SiteHeader active="play" roomId={gameState?.gameId} />
 
       <main className="px-4 pb-16 pt-32 sm:px-6">
@@ -572,7 +680,7 @@ export default function Game({
 
               <div className="mt-6 flex justify-center">
                 <ChessBoardPure
-                  fen={gameState.fen}
+                  fen={victoryAnimation?.lockedFen || gameState.fen}
                   orientation={gameState.color}
                   onMove={handleMove}
                   onPremoveChange={(nextPremove) => setPremove(nextPremove)}
@@ -582,10 +690,12 @@ export default function Game({
                       ? gameState.whiteCanMove
                       : gameState.blackCanMove)
                   }
-                  lastMove={gameState.lastMove}
+                  lastMove={victoryAnimation?.lockedMove ?? gameState.lastMove}
                   syncToken={gameState.boardSyncToken}
                   capturedPiece={gameState.capturedPiece}
                   premove={premove}
+                  victorySquare={victoryAnimation?.square ?? null}
+                  victoryActive={Boolean(victoryAnimation)}
                 />
               </div>
             </section>

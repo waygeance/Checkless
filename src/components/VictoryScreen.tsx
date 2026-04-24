@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
 import { Crown, Swords } from "lucide-react";
-import { initConfetti, clearConfetti } from "./confetti";
 
 interface VictoryScreenProps {
   winner: "white" | "black";
@@ -21,15 +19,6 @@ export function VictoryScreen({
 }: VictoryScreenProps) {
   const isVictory = winner === playerColor;
 
-  useEffect(() => {
-    // Launch confetti animation
-    initConfetti({ cannons: true, fireworks: true });
-
-    return () => {
-      clearConfetti();
-    };
-  }, []);
-
   const pieceSymbols: { [key: string]: string } = {
     p: "♟",
     r: "♜",
@@ -47,11 +36,6 @@ export function VictoryScreen({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <canvas
-        id="confetti"
-        className="fixed inset-0 pointer-events-none"
-        style={{ width: "100%", height: "100%" }}
-      />
       <div className="relative z-10 mx-4 w-full max-w-lg overflow-hidden rounded-[2rem] border border-white/10 bg-mocha p-8 shadow-[0_30px_80px_rgba(0,0,0,0.42)] sm:p-10">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(200,255,0,0.18),transparent_75%)]" />
         <div className="text-center">

@@ -25,12 +25,12 @@ export function SiteHeader({ active = "home", roomId }: SiteHeaderProps) {
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-espresso/82 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <Link href="/" className="group flex min-w-0 items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-lime shadow-tactile-lime transition-transform duration-300 group-hover:scale-105">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime shadow-tactile-lime transition-transform duration-300 group-hover:scale-105">
             <Image
               src="/piece/horsey/wK.svg"
               alt="Checkless king logo"
-              width={26}
-              height={26}
+              width={50}
+              height={50}
               className="opacity-95 saturate-0"
               priority
             />

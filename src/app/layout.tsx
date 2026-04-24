@@ -1,5 +1,23 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
+
+const round8Four = localFont({
+  src: [
+    {
+      path: "./fonts/round8-four-webfont.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/round8-four-webfont.woff",
+      weight: "400",
+      style: "normal",
+    },
+  ],
+  variable: "--font-round8-four",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Checkless | Simultaneous Chess",
@@ -13,7 +31,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${round8Four.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <body className="flex min-h-full flex-col bg-espresso text-cream">
         {children}
       </body>

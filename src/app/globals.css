@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap");
 @import "tailwindcss";
 @import "chessground/assets/chessground.base.css";
 @import "chessground/assets/chessground.brown.css";
@@ -46,9 +45,13 @@
   --color-lime-hover: var(--lime-hover);
   --color-lime-muted: var(--lime-muted);
   --color-danger: var(--danger);
-  --font-display: "Space Grotesk", "Inter", sans-serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display:
+    "Segoe UI", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    "Segoe UI", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 }
 
 * {
@@ -57,13 +60,14 @@
 
 html {
   scroll-behavior: smooth;
+  font-family: var(--font-sans);
 }
 
 body {
   min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: inherit;
   color: rgb(var(--foreground-rgb));
   background-color: var(--background);
   background-image:
@@ -145,6 +149,122 @@ body {
   }
 }
 
+@keyframes victory-square-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  35% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 0.88;
+    transform: scale(1);
+  }
+}
+
+@keyframes victory-crown-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.28) rotate(-14deg);
+  }
+
+  28% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.22) rotate(6deg);
+  }
+
+  62% {
+    transform: translateY(-4px) scale(1.1) rotate(4deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes victory-capture-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+
+  18% {
+    opacity: 0.95;
+    transform: scale(1.05);
+  }
+
+  55% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes victory-ring-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  24% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+
+@keyframes victory-burst-particle {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+  }
+
+  16% {
+    opacity: 1;
+    transform: translate(
+        calc(var(--particle-x) * 0.35),
+        calc(var(--particle-y) * 0.35)
+      )
+      scale(1) rotate(90deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(var(--particle-x), var(--particle-y)) scale(0.55)
+      rotate(240deg);
+  }
+}
+
+@keyframes victory-arc-sweep {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(var(--arc-rotation, 0deg));
+  }
+
+  20% {
+    opacity: 1;
+    transform: scale(1) rotate(var(--arc-rotation, 0deg));
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.45) rotate(calc(var(--arc-rotation, 0deg) + 26deg));
+  }
+}
+
 .cg-wrap cg-board {
   background-color: #8b7355 !important;
   background-image: url("/images/board/wood2.jpg") !important;
@@ -160,7 +280,9 @@ body {
 
 .cg-wrap coords {
   color: rgba(240, 234, 220, 0.72) !important;
-  font-family: "JetBrains Mono", monospace !important;
+  font-family:
+    ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace !important;
   font-size: 10px !important;
 }
 

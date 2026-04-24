@@ -31,7 +31,7 @@ export async function initConfetti(opts: ConfettiOpts = {
   });
 
   if (opts.cannons) {
-    const durationMs = 18 * 1000;
+    const durationMs = 2400;
     const endAt = Date.now() + durationMs;
 
     const interval = setInterval(function () {
@@ -42,18 +42,18 @@ export async function initConfetti(opts: ConfettiOpts = {
   }
 
   if (opts.fireworks) {
-    [50, 1200, 2700].forEach(delay => setTimeout(() => fireworks(), delay));
+    [80, 520, 980, 1520].forEach((delay) => setTimeout(() => fireworks(), delay));
   }
 
   const cannons = () => {
     const fire = (custom: any) =>
       party({
-        scalar: 0.9,
-        gravity: 0.3,
-        particleCount: randomInRange(15, 30),
-        spread: randomInRange(30, 80),
-        startVelocity: randomInRange(20, 80),
-        ticks: randomInRange(180, 230),
+        scalar: 0.88,
+        gravity: 0.45,
+        particleCount: randomInRange(18, 34),
+        spread: randomInRange(46, 92),
+        startVelocity: randomInRange(28, 88),
+        ticks: randomInRange(90, 140),
         ...custom,
       });
 
@@ -77,34 +77,37 @@ export async function initConfetti(opts: ConfettiOpts = {
   const fireworks = () => {
     const opts: any = {
       spread: 360,
-      ticks: 80,
-      gravity: 0.15,
-      decay: 0.85,
-      startVelocity: 30,
-      colors: ['FFE400', 'FFBD00', 'E89400', 'FFCA6C', 'FDFFB8'],
+      ticks: 70,
+      gravity: 0.2,
+      decay: 0.88,
+      startVelocity: 28,
+      colors: ["FFFFFF", "F7FFB0", "DFFF3A", "C8FF00"],
     };
     const shoot = () => {
-      const origin = { x: randomInRange(0.2, 0.8), y: randomInRange(0.1, 0.5) };
+      const origin = {
+        x: randomInRange(0.18, 0.82),
+        y: randomInRange(0.08, 0.42),
+      };
       [0, 150].forEach(d =>
         setTimeout(() => {
           party({
             ...opts,
             origin,
-            particleCount: 20,
-            shapes: ['star'],
-            scalar: 0.5,
+            particleCount: 16,
+            shapes: ["star"],
+            scalar: 0.48,
           });
           party({
             ...opts,
             origin,
-            particleCount: 50,
-            shapes: ['circle'],
-            scalar: 0.35,
+            particleCount: 34,
+            shapes: ["circle"],
+            scalar: 0.34,
           });
         }, d),
       );
     };
-    [0, 100, 200, 300].forEach(d => setTimeout(shoot, d));
+    [0, 110, 220, 330].forEach((d) => setTimeout(shoot, d));
   };
 }
 

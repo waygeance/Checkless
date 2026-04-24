@@ -232,23 +232,23 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: "-120px" }}
                 transition={{ duration: 0.6, delay: 0.1 }}
-                className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-mocha/65 p-7 shadow-tactile"
+                className="relative min-h-[19rem] overflow-hidden rounded-[2rem] border border-white/8 bg-mocha/78 p-7 shadow-tactile backdrop-blur-md sm:min-h-[21rem]"
               >
                 <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.22)_0,rgba(0,0,0,0.22)_2px,transparent_2px,transparent_11px)] opacity-[0.1]" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-espresso/40 text-center backdrop-blur-[3px]">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-espresso/75 shadow-inner">
-                    <Lock className="h-7 w-7 text-cream-muted/70" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[linear-gradient(180deg,rgba(56,43,39,0.76)_0%,rgba(44,33,31,0.84)_100%)] px-6 text-center backdrop-blur-xl sm:px-8">
+                  <div className="flex h-18 w-18 items-center justify-center rounded-full border border-white/10 bg-espresso/82 shadow-inner sm:h-20 sm:w-20">
+                    <Lock className="h-8 w-8 text-cream-muted/80 sm:h-9 sm:w-9" />
                   </div>
-                  <div className="mt-5 font-display text-3xl font-bold text-cream/70">
+                  <div className="mt-6 font-display text-4xl font-bold leading-none text-cream/78 sm:text-[3.2rem]">
                     RANKED MATCH
                   </div>
-                  <p className="mt-2 max-w-sm text-sm leading-relaxed text-cream-muted/80">
+                  <p className="mt-4 max-w-md text-base leading-relaxed text-cream-muted/85 sm:text-lg">
                     Authentication, ladders, and persistent ratings are coming
                     next.
                   </p>
                 </div>
 
-                <div className="opacity-30">
+                <div className="scale-[1.02] select-none opacity-15 blur-[8px]">
                   <span className="font-mono text-xs uppercase tracking-[0.24em] text-cream-muted">
                     Locked State
                   </span>

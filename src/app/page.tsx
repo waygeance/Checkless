@@ -11,9 +11,13 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+
+const HERO_VIDEO_MP4_SRC = "/videos/home-hero.mp4";
+const HERO_VIDEO_POSTER_SRC = "/images/home-hero-poster.jpg";
+const HERO_VIDEO_DESKTOP_QUERY = "(min-width: 768px)";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -65,18 +69,112 @@ const ruleCards = [
   },
 ] as const;
 
+function subscribeToMediaQuery(query: MediaQueryList, listener: () => void) {
+  const handleChange = () => listener();
+
+  if ("addEventListener" in query) {
+    query.addEventListener("change", handleChange);
+    return () => query.removeEventListener("change", handleChange);
+  }
+
+  const legacyQuery = query as MediaQueryList & {
+    addListener?: (callback: () => void) => void;
+    removeListener?: (callback: () => void) => void;
+  };
+
+  legacyQuery.addListener?.(handleChange);
+  return () => legacyQuery.removeListener?.(handleChange);
+}
+
 export default function LandingPage() {
   const [hoveredVariant, setHoveredVariant] = useState<string | null>(null);
+  const [heroVideoEnabled, setHeroVideoEnabled] = useState(false);
+  const [heroVideoReady, setHeroVideoReady] = useState(false);
+  const [heroVideoFailed, setHeroVideoFailed] = useState(false);
+
+  useEffect(() => {
+    const reducedMotionQuery = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    );
+    const desktopQuery = window.matchMedia(HERO_VIDEO_DESKTOP_QUERY);
+
+    const syncHeroVideoPreference = () => {
+      setHeroVideoEnabled(
+        desktopQuery.matches && !reducedMotionQuery.matches,
+      );
+    };
+
+    syncHeroVideoPreference();
+
+    const stopReducedMotionWatcher = subscribeToMediaQuery(
+      reducedMotionQuery,
+      syncHeroVideoPreference,
+    );
+    const stopDesktopWatcher = subscribeToMediaQuery(
+      desktopQuery,
+      syncHeroVideoPreference,
+    );
+
+    return () => {
+      stopReducedMotionWatcher();
+      stopDesktopWatcher();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!heroVideoEnabled) {
+      setHeroVideoReady(false);
+    }
+  }, [heroVideoEnabled]);
+
+  const shouldRenderHeroVideo = heroVideoEnabled && !heroVideoFailed;
 
   return (
     <div className="min-h-screen overflow-hidden bg-espresso text-cream">
       <SiteHeader active="home" />
 
       <main className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_top,rgba(200,255,0,0.14),transparent_58%)]" />
+        <section className="relative isolate overflow-hidden px-6 pb-14 pt-36 sm:pb-20 sm:pt-40">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[34rem] overflow-hidden sm:h-[40rem]">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-cover bg-center opacity-24"
+              style={{ backgroundImage: `url(${HERO_VIDEO_POSTER_SRC})` }}
+            />
 
-        <section className="relative px-6 pb-14 pt-36 sm:pb-20 sm:pt-40">
-          <div className="mx-auto max-w-6xl">
+            {shouldRenderHeroVideo ? (
+              <video
+                key={HERO_VIDEO_MP4_SRC}
+                aria-hidden="true"
+                tabIndex={-1}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster={HERO_VIDEO_POSTER_SRC}
+                disablePictureInPicture
+                controlsList="nofullscreen nodownload noplaybackrate noremoteplayback"
+                onLoadedData={() => setHeroVideoReady(true)}
+                onError={() => {
+                  setHeroVideoReady(false);
+                  setHeroVideoFailed(true);
+                }}
+                className={`pointer-events-none absolute inset-0 h-full w-full scale-[1.04] select-none object-cover object-center transition-opacity duration-700 ${
+                  heroVideoReady ? "opacity-40" : "opacity-0"
+                } [filter:blur(1.5px)_brightness(0.62)_contrast(0.88)_saturate(0.72)]`}
+              >
+                <source src={HERO_VIDEO_MP4_SRC} type="video/mp4" />
+              </video>
+            ) : null}
+
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(44,33,31,0.44)_0%,rgba(44,33,31,0.74)_58%,rgba(44,33,31,0.98)_100%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(240,234,220,0.08),transparent_38%),repeating-linear-gradient(135deg,rgba(255,255,255,0.018)_0,rgba(255,255,255,0.018)_1px,transparent_1px,transparent_14px)] opacity-50" />
+          </div>
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[34rem] bg-[radial-gradient(circle_at_top,rgba(200,255,0,0.14),transparent_58%)] sm:h-[40rem]" />
+
+          <div className="relative z-20 mx-auto max-w-6xl">
             <motion.div
               className="mx-auto max-w-4xl text-center"
               initial="hidden"
@@ -134,10 +232,14 @@ export default function LandingPage() {
                 </Link>
               </motion.div>
             </motion.div>
+          </div>
+        </section>
 
+        <section className="relative px-6 pb-10 sm:pb-14">
+          <div className="mx-auto max-w-6xl">
             <motion.div
               id="features"
-              className="mt-16 grid gap-6 md:grid-cols-3"
+              className="grid gap-6 md:grid-cols-3"
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: "-120px" }}

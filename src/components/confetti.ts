@@ -1,3 +1,8 @@
+import type {
+  CanvasConfetti,
+  ConfettiOptions,
+} from "canvas-confetti";
+
 // Confetti animation for victory celebrations
 // Adapted from lila ui/bits/src/bits.confetti.ts
 
@@ -10,7 +15,7 @@ interface ConfettiOpts {
   fireworks?: boolean;
 }
 
-let confettiModule: any = null;
+let confettiModule: CanvasConfetti | null = null;
 
 export async function initConfetti(opts: ConfettiOpts = {
   cannons: true,
@@ -21,10 +26,11 @@ export async function initConfetti(opts: ConfettiOpts = {
 
   // Dynamically import canvas-confetti
   if (!confettiModule) {
-    confettiModule = await import('canvas-confetti');
+    const { default: canvasConfetti } = await import("canvas-confetti");
+    confettiModule = canvasConfetti;
   }
 
-  const party = confettiModule.default.create(canvas, {
+  const party = confettiModule.create(canvas, {
     disableForReducedMotion: true,
     useWorker: true,
     resize: true,
@@ -46,7 +52,7 @@ export async function initConfetti(opts: ConfettiOpts = {
   }
 
   const cannons = () => {
-    const fire = (custom: any) =>
+    const fire = (custom: ConfettiOptions) =>
       party({
         scalar: 0.88,
         gravity: 0.45,
@@ -58,24 +64,28 @@ export async function initConfetti(opts: ConfettiOpts = {
       });
 
     // left cannon
-    for (const _ of [0, 1])
+    for (const iteration of [0, 1]) {
+      void iteration;
       fire({
         angle: randomInRange(50, 70),
         drift: randomInRange(0, 1),
         origin: { x: -0.3, y: 1 },
       });
+    }
 
     // right cannon
-    for (const _ of [0, 1])
+    for (const iteration of [0, 1]) {
+      void iteration;
       fire({
         angle: randomInRange(110, 130),
         drift: randomInRange(-1, 0),
         origin: { x: 1.3, y: 1 },
       });
+    }
   };
 
   const fireworks = () => {
-    const opts: any = {
+    const options: ConfettiOptions = {
       spread: 360,
       ticks: 70,
       gravity: 0.2,
@@ -91,14 +101,14 @@ export async function initConfetti(opts: ConfettiOpts = {
       [0, 150].forEach(d =>
         setTimeout(() => {
           party({
-            ...opts,
+            ...options,
             origin,
             particleCount: 16,
             shapes: ["star"],
             scalar: 0.48,
           });
           party({
-            ...opts,
+            ...options,
             origin,
             particleCount: 34,
             shapes: ["circle"],

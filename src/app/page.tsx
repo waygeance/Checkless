@@ -121,12 +121,6 @@ export default function LandingPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!heroVideoEnabled) {
-      setHeroVideoReady(false);
-    }
-  }, [heroVideoEnabled]);
-
   const shouldRenderHeroVideo = heroVideoEnabled && !heroVideoFailed;
 
   return (
@@ -135,10 +129,18 @@ export default function LandingPage() {
 
       <main className="relative overflow-hidden">
         <section className="relative isolate overflow-hidden px-6 pb-14 pt-36 sm:pb-20 sm:pt-40">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[34rem] overflow-hidden sm:h-[40rem]">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[40rem] overflow-hidden sm:h-[47rem]"
+            style={{
+              WebkitMaskImage:
+                "linear-gradient(180deg, #000 0%, #000 72%, rgba(0,0,0,0.7) 88%, transparent 100%)",
+              maskImage:
+                "linear-gradient(180deg, #000 0%, #000 72%, rgba(0,0,0,0.7) 88%, transparent 100%)",
+            }}
+          >
             <div
               aria-hidden="true"
-              className="absolute inset-0 bg-cover bg-center opacity-24"
+              className="absolute inset-0 bg-cover bg-center opacity-30"
               style={{ backgroundImage: `url(${HERO_VIDEO_POSTER_SRC})` }}
             />
 
@@ -155,24 +157,25 @@ export default function LandingPage() {
                 poster={HERO_VIDEO_POSTER_SRC}
                 disablePictureInPicture
                 controlsList="nofullscreen nodownload noplaybackrate noremoteplayback"
+                onLoadStart={() => setHeroVideoReady(false)}
                 onLoadedData={() => setHeroVideoReady(true)}
                 onError={() => {
                   setHeroVideoReady(false);
                   setHeroVideoFailed(true);
                 }}
-                className={`pointer-events-none absolute inset-0 h-full w-full scale-[1.04] select-none object-cover object-center transition-opacity duration-700 ${
-                  heroVideoReady ? "opacity-40" : "opacity-0"
-                } [filter:blur(1.5px)_brightness(0.62)_contrast(0.88)_saturate(0.72)]`}
+                className={`pointer-events-none absolute inset-0 h-full w-full scale-[1.02] select-none object-cover object-center transition-opacity duration-700 ${
+                  heroVideoReady ? "opacity-[0.52]" : "opacity-0"
+                } [filter:blur(0.85px)_brightness(0.78)_contrast(0.92)_saturate(0.84)]`}
               >
                 <source src={HERO_VIDEO_MP4_SRC} type="video/mp4" />
               </video>
             ) : null}
 
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(44,33,31,0.44)_0%,rgba(44,33,31,0.74)_58%,rgba(44,33,31,0.98)_100%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(240,234,220,0.08),transparent_38%),repeating-linear-gradient(135deg,rgba(255,255,255,0.018)_0,rgba(255,255,255,0.018)_1px,transparent_1px,transparent_14px)] opacity-50" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(44,33,31,0.18)_0%,rgba(44,33,31,0.44)_46%,rgba(44,33,31,0.94)_100%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(240,234,220,0.08),transparent_38%),linear-gradient(120deg,rgba(200,255,0,0.1)_0%,transparent_46%,rgba(240,234,220,0.05)_100%)] opacity-65" />
           </div>
 
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[34rem] bg-[radial-gradient(circle_at_top,rgba(200,255,0,0.14),transparent_58%)] sm:h-[40rem]" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[40rem] bg-[radial-gradient(circle_at_top,rgba(200,255,0,0.14),transparent_58%)] sm:h-[47rem]" />
 
           <div className="relative z-20 mx-auto max-w-6xl">
             <motion.div

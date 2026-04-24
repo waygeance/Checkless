@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   Clock3,
@@ -132,6 +132,7 @@ export default function Game({
   const autoStartQueuedRef = useRef(false);
   const victorySequenceTimeoutsRef = useRef<number[]>([]);
   const lastResolvedMoveRef = useRef<[string, string] | null>(null);
+  const latestFenRef = useRef("");
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<
     | "connecting"
@@ -150,26 +151,30 @@ export default function Game({
     useState<VictoryAnimationState | null>(null);
   const [premove, setPremove] = useState<Premove | null>(null);
 
-  const clearVictorySequenceTimers = () => {
+  const clearVictorySequenceTimers = useCallback(() => {
     victorySequenceTimeoutsRef.current.forEach((timeoutId) => {
       window.clearTimeout(timeoutId);
     });
     victorySequenceTimeoutsRef.current = [];
-  };
+  }, []);
 
-  const resetVictoryPresentation = () => {
+  const resetVictoryPresentation = useCallback(() => {
     clearVictorySequenceTimers();
     lastResolvedMoveRef.current = null;
     setVictoryAnimation(null);
     setVictoryState(emptyVictoryState());
-  };
+  }, [clearVictorySequenceTimers]);
 
   useEffect(() => {
     return () => {
       clearVictorySequenceTimers();
       clearConfetti();
     };
-  }, []);
+  }, [clearVictorySequenceTimers]);
+
+  useEffect(() => {
+    latestFenRef.current = gameState?.fen ?? "";
+  }, [gameState?.fen]);
 
   useEffect(() => {
     if (!victoryAnimation?.showConfetti) return;
@@ -353,7 +358,7 @@ export default function Game({
         setVictoryAnimation({
           square: victorySquare,
           showConfetti: false,
-          lockedFen: data.fen ?? gameState?.fen ?? "",
+          lockedFen: data.fen ?? latestFenRef.current,
           lockedMove: resolvedMove ?? null,
         });
 
@@ -388,7 +393,7 @@ export default function Game({
     return () => {
       newSocket.close();
     };
-  }, []);
+  }, [clearVictorySequenceTimers, resetVictoryPresentation]);
 
   useEffect(() => {
     if (!autoStart) return;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
@@ -16,13 +17,40 @@ const navLinks = [
 ] as const;
 
 export function SiteHeader({ active = "home", roomId }: SiteHeaderProps) {
+  const [isScrolled, setIsScrolled] = useState(active !== "home");
+
+  useEffect(() => {
+    if (active !== "home") {
+      setIsScrolled(true);
+      return;
+    }
+
+    const syncScrollState = () => {
+      setIsScrolled(window.scrollY > 24);
+    };
+
+    syncScrollState();
+    window.addEventListener("scroll", syncScrollState, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", syncScrollState);
+    };
+  }, [active]);
+
   const primaryCta =
     active === "play"
       ? { label: "Back Home", href: "/" }
       : { label: "Play Now", href: "/play" };
+  const shouldOverlayHero = active === "home" && !isScrolled;
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-espresso/82 backdrop-blur-xl">
+    <header
+      className={`fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ${
+        shouldOverlayHero
+          ? "border-b border-transparent bg-transparent shadow-none backdrop-blur-0"
+          : "border-b border-white/5 bg-espresso/82 shadow-[0_10px_36px_rgba(0,0,0,0.24)] backdrop-blur-xl"
+      }`}
+    >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <Link href="/" className="group flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime shadow-tactile-lime transition-transform duration-300 group-hover:scale-105">

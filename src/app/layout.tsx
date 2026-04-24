@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Simultaneous Chess",
-  description: "Real-time simultaneous chess with independent timers.",
+  title: "Checkless | Simultaneous Chess",
+  description:
+    "A fast espresso-and-lime interface for real-time simultaneous chess with independent timers.",
 };
 
 export default function RootLayout({
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col bg-espresso text-cream">
+        {children}
+      </body>
     </html>
   );
 }

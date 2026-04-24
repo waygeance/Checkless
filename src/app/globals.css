@@ -1,56 +1,167 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap");
 @import "tailwindcss";
 @import "chessground/assets/chessground.base.css";
 @import "chessground/assets/chessground.brown.css";
 @import "chessground/assets/chessground.cburnett.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --background: #2c211f;
+  --foreground: #f0eadc;
+  --foreground-rgb: 240, 234, 220;
+  --espresso: #2c211f;
+  --mocha: #382b27;
+  --mocha-soft: #4a3933;
+  --espresso-deep: #241b19;
+  --cream: #f0eadc;
+  --cream-muted: #d8d0c0;
+  --cream-faint: rgba(240, 234, 220, 0.62);
+  --lime: #c8ff00;
+  --lime-hover: #d4ff33;
+  --lime-muted: rgba(200, 255, 0, 0.15);
+  --danger: #ff6b5f;
+  --coffee-bg: var(--espresso);
+  --coffee-surface: var(--mocha);
+  --coffee-surface-strong: var(--espresso-deep);
+  --coffee-surface-soft: var(--mocha-soft);
+  --coffee-border: rgba(255, 255, 255, 0.08);
+  --coffee-border-strong: rgba(255, 255, 255, 0.18);
+  --coffee-text: var(--cream);
+  --coffee-muted: var(--cream-faint);
+  --coffee-muted-strong: var(--cream-muted);
+  --coffee-accent: var(--lime);
+  --coffee-accent-strong: var(--lime-hover);
+  --coffee-accent-soft: var(--lime-muted);
+  --coffee-danger: var(--danger);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
-    Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  --color-espresso: var(--espresso);
+  --color-mocha: var(--mocha);
+  --color-mocha-soft: var(--mocha-soft);
+  --color-cream: var(--cream);
+  --color-cream-muted: var(--cream-muted);
+  --color-lime: var(--lime);
+  --color-lime-hover: var(--lime-hover);
+  --color-lime-muted: var(--lime-muted);
+  --color-danger: var(--danger);
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at top, rgba(200, 255, 0, 0.11), transparent 28rem),
+    radial-gradient(
+      circle at 85% 18%,
+      rgba(240, 234, 220, 0.08),
+      transparent 18rem
+    ),
+    radial-gradient(circle at 10% 100%, rgba(56, 43, 39, 0.88), transparent 24rem),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--lime);
+  color: var(--espresso);
+}
+
+@layer utilities {
+  .bg-tactile-gradient {
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  }
+
+  .shadow-tactile {
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.08),
+      inset 0 -1px 1px rgba(0, 0, 0, 0.2),
+      0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .shadow-tactile-lime {
+    box-shadow:
+      inset 0 1px 2px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+      0 8px 24px rgba(200, 255, 0, 0.25);
+  }
+
+  .shadow-tactile-btn {
+    box-shadow:
+      inset 0 2px 2px rgba(255, 255, 255, 0.4),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+      0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .shadow-tactile-btn-pressed {
+    box-shadow:
+      inset 0 2px 4px rgba(0, 0, 0, 0.3),
+      0 1px 2px rgba(255, 255, 255, 0.1);
+  }
+
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
+  .text-shadow-lime {
+    text-shadow: 0 0 12px rgba(200, 255, 0, 0.4);
+  }
+
+  .panel-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 255, 0, 0.28) transparent;
+  }
+
+  .panel-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .panel-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .panel-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(200, 255, 0, 0.28);
+  }
 }
 
 .cg-wrap cg-board {
-  background-color: #769656 !important;
-  background-image: url("/images/board/green.png") !important;
+  background-color: #8b7355 !important;
+  background-image: url("/images/board/wood2.jpg") !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
   background-size: 100% 100% !important;
+}
+
+.cg-wrap {
+  overflow: hidden;
+  border-radius: 1.5rem;
+}
+
+.cg-wrap coords {
+  color: rgba(240, 234, 220, 0.72) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 10px !important;
 }
 
 .cg-wrap cg-board piece.premove-piece {

@@ -410,14 +410,15 @@ export function ChessBoardPure({
   }, [capturedPiece, fen, lastMove]);
 
   return (
-    <div className="relative w-full max-w-[600px]">
+    <div className="relative w-full max-w-[720px]">
       <div
         ref={boardRef}
-        className={`cg-wrap aspect-square w-full rounded-lg transition-all duration-300 ${
-          !canMove ? "grayscale brightness-95" : ""
+        className={`cg-wrap aspect-square w-full border border-white/10 bg-[#241b19] transition-all duration-300 ${
+          !canMove ? "grayscale-[0.12] brightness-95" : ""
         }`}
         style={{
-          boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
+          boxShadow:
+            "0 18px 45px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04)",
         }}
       />
     </div>

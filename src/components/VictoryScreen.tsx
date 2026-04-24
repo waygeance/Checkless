@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Crown, Swords } from "lucide-react";
 import { initConfetti, clearConfetti } from "./confetti";
 
 interface VictoryScreenProps {
@@ -19,7 +20,6 @@ export function VictoryScreen({
   onClose,
 }: VictoryScreenProps) {
   const isVictory = winner === playerColor;
-  const isDefeat = winner !== playerColor;
 
   useEffect(() => {
     // Launch confetti animation
@@ -52,39 +52,52 @@ export function VictoryScreen({
         className="fixed inset-0 pointer-events-none"
         style={{ width: "100%", height: "100%" }}
       />
-      <div className="relative z-10 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-700">
+      <div className="relative z-10 mx-4 w-full max-w-lg overflow-hidden rounded-[2rem] border border-white/10 bg-mocha p-8 shadow-[0_30px_80px_rgba(0,0,0,0.42)] sm:p-10">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(200,255,0,0.18),transparent_75%)]" />
         <div className="text-center">
-          <div className="text-6xl mb-4">
-            {isVictory ? "🎉" : "😔"}
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-espresso/80 shadow-inner">
+            {isVictory ? (
+              <Crown className="h-8 w-8 text-lime" />
+            ) : (
+              <Swords className="h-8 w-8 text-danger" />
+            )}
           </div>
-          
-          <h2 className="text-4xl font-bold mb-4 text-white">
+
+          <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-cream-muted">
+            Match Result
+          </div>
+
+          <h2 className="mb-4 mt-3 font-display text-4xl font-bold text-cream sm:text-5xl">
             {isVictory ? "VICTORY!" : "DEFEAT"}
           </h2>
-          
-          <div className="bg-gray-800/50 rounded-lg p-6 mb-6">
-            <p className="text-gray-300 mb-2">
+
+          <div className="mb-6 rounded-[1.6rem] border border-white/8 bg-espresso/65 p-6 shadow-inner">
+            <p className="mb-2 text-cream-muted">
               {isVictory
                 ? "You captured the enemy king!"
                 : "Your king was captured!"}
             </p>
-            
-            <div className="flex items-center justify-center gap-4 text-5xl my-4">
-              <div className="text-white">{pieceSymbols[capturedBy] || capturedBy}</div>
-              <div className="text-2xl text-gray-400">⚔️</div>
-              <div className="text-red-400">{pieceSymbols[capturedPiece] || capturedPiece}</div>
+
+            <div className="my-5 flex items-center justify-center gap-4 text-5xl">
+              <div className="text-cream">
+                {pieceSymbols[capturedBy] || capturedBy}
+              </div>
+              <div className="text-2xl text-cream-muted">⚔️</div>
+              <div className="text-danger">
+                {pieceSymbols[capturedPiece] || capturedPiece}
+              </div>
             </div>
-            
-            <p className="text-sm text-gray-400">
+
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-cream-muted">
               {capturedBy.toUpperCase()} captured {capturedPiece.toUpperCase()}
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
+            className="w-full rounded-full bg-lime px-6 py-4 font-display text-lg font-bold text-espresso shadow-tactile-btn transition-all duration-300 hover:bg-lime-hover active:translate-y-0.5 active:shadow-tactile-btn-pressed"
           >
-            Play Again
+            Back To Lobby
           </button>
         </div>
       </div>

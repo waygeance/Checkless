@@ -5,9 +5,15 @@ const { SimultaneousChess } = require("./chess-engine");
 
 const app = express();
 const server = http.createServer(app);
+const PORT = Number(process.env.PORT) || 8081;
+const HOST = process.env.HOST || "0.0.0.0";
+const allowedOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 const io = new Server(server, {
   cors: {
-    origin: "*", // This tells the server: "Allow anyone to connect!"
+    origin: allowedOrigins.length > 0 ? allowedOrigins : "*",
     methods: ["GET", "POST"],
   },
 });
@@ -16,6 +22,10 @@ const games = new Map();
 const waitingPlayers = [];
 const TICK_INTERVAL = 100;
 const VARIANT_TIMES = { "1s": 1000, "3s": 3000, "5s": 5000 };
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ ok: true });
+});
 
 function normalizeMoveInput(move) {
   if (!move || typeof move !== "object") return null;
@@ -58,6 +68,29 @@ function createGame(player1, player2, variant) {
   };
 }
 
+function removeWaitingPlayer(socketId) {
+  const waitingIndex = waitingPlayers.findIndex((p) => p.socketId === socketId);
+
+  if (waitingIndex === -1) return null;
+
+  return waitingPlayers.splice(waitingIndex, 1)[0];
+}
+
+function findGameBySocketId(socketId) {
+  for (const [gameId, game] of games.entries()) {
+    if (game.status !== "active") continue;
+
+    if (
+      game.players.white.socketId === socketId ||
+      game.players.black.socketId === socketId
+    ) {
+      return { gameId, game };
+    }
+  }
+
+  return null;
+}
+
 setInterval(() => {
   games.forEach((game) => {
     if (game.status !== "active") return;
@@ -83,7 +116,15 @@ io.on("connection", (socket) => {
   console.log("Player connected:", socket.id);
 
   socket.on("find_game", ({ variant }) => {
-    const waiting = waitingPlayers.find((p) => p.variant === variant);
+    if (!VARIANT_TIMES[variant]) return;
+    if (findGameBySocketId(socket.id)) return;
+
+    removeWaitingPlayer(socket.id);
+
+    const waiting = waitingPlayers.find(
+      (p) => p.variant === variant && p.socketId !== socket.id,
+    );
+
     if (waiting) {
       const game = createGame(waiting.socketId, socket.id, variant);
       games.set(game.id, game);
@@ -109,9 +150,59 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("abort_match", ({ gameId } = {}) => {
+    const waitingPlayer = removeWaitingPlayer(socket.id);
+
+    if (waitingPlayer) {
+      socket.emit("match_aborted", {
+        message: "Matchmaking cancelled. You are back in the lobby.",
+      });
+      return;
+    }
+
+    const activeMatch = findGameBySocketId(socket.id);
+
+    if (!activeMatch) {
+      socket.emit("match_aborted", {
+        message: "No active match to abort.",
+      });
+      return;
+    }
+
+    if (gameId && gameId !== activeMatch.gameId) return;
+
+    const { game, gameId: activeGameId } = activeMatch;
+    const playerColor =
+      game.players.white.socketId === socket.id ? "white" : "black";
+    const opponentColor = playerColor === "white" ? "black" : "white";
+    const opponentSocketId = game.players[opponentColor].socketId;
+
+    game.status = "finished";
+    socket.leave(activeGameId);
+    io.sockets.sockets.get(opponentSocketId)?.leave(activeGameId);
+
+    socket.emit("match_aborted", {
+      message: "Match aborted. You are back in the lobby.",
+    });
+
+    io.to(opponentSocketId).emit("game_over", {
+      reason: "opponent_aborted",
+      winner: opponentColor,
+      fen: game.chess.fen(),
+    });
+
+    games.delete(activeGameId);
+  });
+
   socket.on("make_move", ({ gameId, move }) => {
     const game = games.get(gameId);
     if (!game || game.status !== "active") return;
+    if (
+      game.players.white.socketId !== socket.id &&
+      game.players.black.socketId !== socket.id
+    ) {
+      return;
+    }
 
     const playerColor =
       game.players.white.socketId === socket.id ? "white" : "black";
@@ -187,26 +278,29 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    const waitingIndex = waitingPlayers.findIndex(
-      (p) => p.socketId === socket.id,
-    );
-    if (waitingIndex !== -1) waitingPlayers.splice(waitingIndex, 1);
+    removeWaitingPlayer(socket.id);
 
-    games.forEach((game, gameId) => {
-      if (
-        game.players.white.socketId === socket.id ||
-        game.players.black.socketId === socket.id
-      ) {
-        const winner =
-          game.players.white.socketId === socket.id ? "black" : "white";
-        io.to(gameId).emit("game_over", {
-          reason: "opponent_disconnected",
-          winner,
-        });
-        games.delete(gameId);
-      }
+    const activeMatch = findGameBySocketId(socket.id);
+
+    if (!activeMatch) return;
+
+    const { game, gameId } = activeMatch;
+    const winner =
+      game.players.white.socketId === socket.id ? "black" : "white";
+    const opponentSocketId =
+      winner === "white"
+        ? game.players.white.socketId
+        : game.players.black.socketId;
+
+    game.status = "finished";
+    io.sockets.sockets.get(opponentSocketId)?.leave(gameId);
+    io.to(opponentSocketId).emit("game_over", {
+      reason: "opponent_disconnected",
+      winner,
+      fen: game.chess.fen(),
     });
+    games.delete(gameId);
   });
 });
 
-server.listen(8081, () => console.log("✓ Server running on :8081"));
+server.listen(PORT, HOST, () => console.log(`✓ Server running on ${HOST}:${PORT}`));

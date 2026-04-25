@@ -23,6 +23,16 @@ const waitingPlayers = [];
 const TICK_INTERVAL = 100;
 const VARIANT_TIMES = { "1s": 1000, "3s": 3000, "5s": 5000 };
 
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: "checkless-backend",
+    message: "Realtime game server is running.",
+    health: "/health",
+    socketPath: "/socket.io/",
+  });
+});
+
 app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true });
 });

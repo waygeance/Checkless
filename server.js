@@ -7,14 +7,67 @@ const app = express();
 const server = http.createServer(app);
 const PORT = Number(process.env.PORT) || 8081;
 const HOST = process.env.HOST || "0.0.0.0";
-const allowedOrigins = (process.env.CORS_ORIGIN || "")
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
   .split(",")
-  .map((origin) => origin.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
+
+function normalizeOrigin(origin) {
+  if (!origin || typeof origin !== "string") return "";
+
+  const trimmedOrigin = origin.trim();
+  if (!trimmedOrigin) return "";
+
+  try {
+    const url = new URL(trimmedOrigin);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return trimmedOrigin.replace(/\/+$/, "");
+  }
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+
+  const normalizedOrigin = normalizeOrigin(origin);
+
+  if (!normalizedOrigin) return false;
+  if (configuredOrigins.includes(normalizedOrigin)) return true;
+
+  const configuredVercelDeploy = configuredOrigins.some((configuredOrigin) =>
+    /\.vercel\.app$/i.test(configuredOrigin),
+  );
+  if (
+    configuredVercelDeploy &&
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(normalizedOrigin)
+  ) {
+    return true;
+  }
+
+  // Keep local development simple without needing extra env vars.
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalizedOrigin)) {
+    return true;
+  }
+
+  return false;
+}
+
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins.length > 0 ? allowedOrigins : "*",
+    origin: (origin, callback) => {
+      const allowed =
+        configuredOrigins.length === 0 ? true : isAllowedOrigin(origin);
+
+      if (!allowed) {
+        console.warn(
+          `Blocked Socket.IO origin: ${origin ?? "unknown"}; allowed origins: ${configuredOrigins.join(", ")}`,
+        );
+      }
+
+      callback(null, allowed);
+    },
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 

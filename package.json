@@ -11,6 +11,8 @@
     "dev:full": "concurrently \"npm run server\" \"npm run dev\""
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "canvas-confetti": "^1.9.4",
     "chessground": "^8.3.0",
     "concurrently": "^9.2.1",

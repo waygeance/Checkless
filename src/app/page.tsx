@@ -12,6 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import BorderGlow from "@/components/BorderGlow";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -255,17 +256,34 @@ export default function LandingPage() {
                   <motion.div
                     key={feature.title}
                     variants={fadeUp}
-                    className="rounded-[1.75rem] border border-white/8 bg-mocha p-7 shadow-tactile bg-tactile-gradient"
+                    className="h-full"
                   >
-                    <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-espresso text-lime shadow-inner">
-                      <Icon className="h-6 w-6" />
-                    </div>
-                    <h2 className="font-display text-2xl font-bold text-cream">
-                      {feature.title}
-                    </h2>
-                    <p className="mt-3 text-sm leading-relaxed text-cream-muted">
-                      {feature.description}
-                    </p>
+                    <BorderGlow
+                      className="h-full"
+                      edgeSensitivity={38}
+                      glowColor="73 100 58"
+                      backgroundColor="var(--mocha)"
+                      borderRadius={28}
+                      glowRadius={26}
+                      glowIntensity={0.7}
+                      coneSpread={20}
+                      animated={false}
+                      fillOpacity={0.18}
+                      colors={["#d8ff5b", "#c8ff00", "#f0eadc"]}
+                    >
+                      <div className="relative flex h-full flex-col overflow-hidden rounded-[calc(1.75rem-1px)] p-7">
+                        <div className="pointer-events-none absolute inset-0 bg-tactile-gradient opacity-80" />
+                        <div className="relative mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-espresso text-lime shadow-inner">
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        <h2 className="relative font-display text-2xl font-bold text-cream">
+                          {feature.title}
+                        </h2>
+                        <p className="relative mt-3 text-sm leading-relaxed text-cream-muted">
+                          {feature.description}
+                        </p>
+                      </div>
+                    </BorderGlow>
                   </motion.div>
                 );
               })}

@@ -75,6 +75,7 @@ const games = new Map();
 const waitingPlayers = [];
 const TICK_INTERVAL = 100;
 const VARIANT_TIMES = { "1s": 1000, "3s": 3000, "5s": 5000 };
+let lastTimerTickAt = Date.now();
 
 app.get("/", (_req, res) => {
   res.status(200).json({
@@ -155,18 +156,22 @@ function findGameBySocketId(socketId) {
 }
 
 setInterval(() => {
+  const now = Date.now();
+  const elapsed = Math.max(1, now - lastTimerTickAt);
+  lastTimerTickAt = now;
+
   games.forEach((game) => {
     if (game.status !== "active") return;
 
     ["white", "black"].forEach((color) => {
       const player = game.players[color];
       if (player.timerValue > 0) {
-        player.timerValue = Math.max(0, player.timerValue - TICK_INTERVAL);
+        player.timerValue = Math.max(0, player.timerValue - elapsed);
         if (player.timerValue === 0) player.canMove = true;
       }
     });
 
-    io.to(game.id).emit("timer_update", {
+    io.to(game.id).volatile.emit("timer_update", {
       white: game.players.white.timerValue,
       black: game.players.black.timerValue,
       whiteCanMove: game.players.white.canMove,
@@ -177,6 +182,20 @@ setInterval(() => {
 
 io.on("connection", (socket) => {
   console.log("Player connected:", socket.id);
+
+  socket.on("latency_ping", (payload, acknowledge) => {
+    if (typeof acknowledge !== "function") return;
+
+    acknowledge({
+      clientAt:
+        payload &&
+        typeof payload === "object" &&
+        typeof payload.clientAt === "number"
+          ? payload.clientAt
+          : null,
+      serverAt: Date.now(),
+    });
+  });
 
   socket.on("find_game", ({ variant }) => {
     if (!VARIANT_TIMES[variant]) return;

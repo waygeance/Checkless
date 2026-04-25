@@ -11,6 +11,7 @@ import {
   Swords,
   TimerReset,
   Users,
+  Wifi,
 } from "lucide-react";
 import { io, Socket } from "socket.io-client";
 import { ChessBoardPure } from "./ChessBoard-pure";
@@ -123,6 +124,53 @@ const formatRules = [
   },
 ] as const;
 
+const LATENCY_SAMPLE_INTERVAL = 4000;
+const LATENCY_LOG_INTERVAL = 15000;
+
+function getPingAppearance(pingMs: number | null) {
+  if (pingMs === null) {
+    return {
+      value: "--",
+      tone: "Syncing",
+      dotClass: "bg-cream-muted/70",
+      textClass: "text-cream-muted",
+    };
+  }
+
+  if (pingMs < 90) {
+    return {
+      value: `${pingMs}ms`,
+      tone: "Strong",
+      dotClass: "bg-lime",
+      textClass: "text-lime",
+    };
+  }
+
+  if (pingMs < 180) {
+    return {
+      value: `${pingMs}ms`,
+      tone: "Stable",
+      dotClass: "bg-cream",
+      textClass: "text-cream",
+    };
+  }
+
+  return {
+    value: `${pingMs}ms`,
+    tone: "High",
+    dotClass: "bg-danger",
+    textClass: "text-danger",
+  };
+}
+
+function getTransportLabel(transportName: string) {
+  if (transportName === "websocket") return "WS";
+  if (transportName === "polling") return "Polling";
+  if (transportName === "offline") return "Offline";
+  if (transportName === "connecting") return "Connecting";
+  return "Unknown";
+}
+
 export default function Game({
   initialVariant = "3s",
   autoStart = false,
@@ -150,6 +198,12 @@ export default function Game({
   const [victoryAnimation, setVictoryAnimation] =
     useState<VictoryAnimationState | null>(null);
   const [premove, setPremove] = useState<Premove | null>(null);
+  const [pingMs, setPingMs] = useState<number | null>(null);
+  const [transportName, setTransportName] = useState("connecting");
+  const latencySamplesRef = useRef<number[]>([]);
+  const latencyProbeInFlightRef = useRef(false);
+  const latencyProbeTimeoutRef = useRef<number | null>(null);
+  const lastLatencyLogAtRef = useRef(0);
 
   const clearVictorySequenceTimers = useCallback(() => {
     victorySequenceTimeoutsRef.current.forEach((timeoutId) => {
@@ -189,10 +243,122 @@ export default function Game({
   useEffect(() => {
     const newSocket = io(SOCKET_URL, {
       timeout: 5000,
+      transports: ["websocket", "polling"],
+      tryAllTransports: true,
+      rememberUpgrade: true,
       reconnection: true,
       reconnectionAttempts: 3,
       reconnectionDelay: 1000,
     });
+    let latencyIntervalId: number | null = null;
+    let removeEngineListeners: (() => void) | null = null;
+
+    const clearLatencyProbeTimeout = () => {
+      if (latencyProbeTimeoutRef.current === null) return;
+
+      window.clearTimeout(latencyProbeTimeoutRef.current);
+      latencyProbeTimeoutRef.current = null;
+    };
+
+    const resetLatencyState = (transport = "connecting") => {
+      setPingMs(null);
+      setTransportName(transport);
+      latencySamplesRef.current = [];
+      latencyProbeInFlightRef.current = false;
+      clearLatencyProbeTimeout();
+    };
+
+    const clearLatencyInterval = () => {
+      if (latencyIntervalId === null) return;
+
+      window.clearInterval(latencyIntervalId);
+      latencyIntervalId = null;
+    };
+
+    const getActiveTransport = () =>
+      newSocket.io.engine?.transport?.name ??
+      (newSocket.connected ? "unknown" : "connecting");
+
+    const logLatency = (message: string, force = false) => {
+      const now = Date.now();
+
+      if (!force && now - lastLatencyLogAtRef.current < LATENCY_LOG_INTERVAL) {
+        return;
+      }
+
+      lastLatencyLogAtRef.current = now;
+      console.info(`[realtime] ${message}`);
+    };
+
+    const sampleLatency = () => {
+      if (!newSocket.connected || latencyProbeInFlightRef.current) return;
+
+      latencyProbeInFlightRef.current = true;
+      const startedAt = performance.now();
+
+      latencyProbeTimeoutRef.current = window.setTimeout(() => {
+        latencyProbeInFlightRef.current = false;
+        latencyProbeTimeoutRef.current = null;
+        console.warn(
+          `[realtime] latency probe timed out via ${getActiveTransport()}`,
+        );
+      }, 2500);
+
+      newSocket.emit(
+        "latency_ping",
+        { clientAt: Date.now() },
+        (_response?: { clientAt?: number | null; serverAt?: number }) => {
+          if (!latencyProbeInFlightRef.current) return;
+
+          latencyProbeInFlightRef.current = false;
+          clearLatencyProbeTimeout();
+
+          const roundTrip = Math.max(0, Math.round(performance.now() - startedAt));
+          const nextSamples = [...latencySamplesRef.current.slice(-5), roundTrip];
+          const averageLatency = Math.round(
+            nextSamples.reduce((sum, sample) => sum + sample, 0) /
+              nextSamples.length,
+          );
+
+          latencySamplesRef.current = nextSamples;
+          setPingMs(averageLatency);
+
+          const transport = getActiveTransport();
+
+          if (roundTrip >= 180 || averageLatency >= 180) {
+            console.warn(
+              `[realtime] high latency ${roundTrip}ms rtt (${averageLatency}ms avg) via ${transport}`,
+            );
+            lastLatencyLogAtRef.current = Date.now();
+            return;
+          }
+
+          logLatency(
+            `latency ${roundTrip}ms rtt (${averageLatency}ms avg) via ${transport}`,
+          );
+        },
+      );
+    };
+
+    const attachEngineListeners = () => {
+      const engine = newSocket.io.engine;
+
+      if (!engine) return;
+
+      setTransportName(engine.transport.name);
+
+      const handleUpgrade = (transport: { name: string }) => {
+        setTransportName(transport.name);
+        logLatency(`transport upgraded to ${transport.name}`, true);
+        sampleLatency();
+      };
+
+      engine.on("upgrade", handleUpgrade);
+
+      removeEngineListeners = () => {
+        engine.off("upgrade", handleUpgrade);
+      };
+    };
 
     newSocket.on("connect", () => {
       setSocket(newSocket);
@@ -200,18 +366,36 @@ export default function Game({
       setConnectionStatus("connected");
       resetVictoryPresentation();
       setMessage("");
+      clearLatencyInterval();
+      removeEngineListeners?.();
+      attachEngineListeners();
+      setTransportName(getActiveTransport());
+      logLatency(`connected via ${getActiveTransport()}`, true);
+      sampleLatency();
+      latencyIntervalId = window.setInterval(
+        sampleLatency,
+        LATENCY_SAMPLE_INTERVAL,
+      );
     });
 
     newSocket.on("connect_error", () => {
       resetVictoryPresentation();
       setConnectionStatus("disconnected");
       setMessage("Failed to connect to the game server.");
+      clearLatencyInterval();
+      removeEngineListeners?.();
+      removeEngineListeners = null;
+      resetLatencyState("offline");
     });
 
     newSocket.on("disconnect", () => {
       resetVictoryPresentation();
       setConnectionStatus("disconnected");
       setMessage("Disconnected from the game server.");
+      clearLatencyInterval();
+      removeEngineListeners?.();
+      removeEngineListeners = null;
+      resetLatencyState("offline");
     });
 
     newSocket.on("waiting", (data) => {
@@ -391,6 +575,9 @@ export default function Game({
     });
 
     return () => {
+      clearLatencyInterval();
+      clearLatencyProbeTimeout();
+      removeEngineListeners?.();
       newSocket.close();
     };
   }, [clearVictorySequenceTimers, resetVictoryPresentation]);
@@ -474,6 +661,8 @@ export default function Game({
   const waitingMessage = message || "Searching for opponent...";
   const showCelebrationConfetti =
     Boolean(victoryAnimation?.showConfetti) || victoryState.show;
+  const pingAppearance = getPingAppearance(pingMs);
+  const transportLabel = getTransportLabel(transportName);
 
   return (
     <div className="min-h-screen bg-espresso text-cream">
@@ -673,6 +862,16 @@ export default function Game({
 
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="rounded-full border border-white/10 bg-espresso/80 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-cream-muted">
+                    <span className="flex items-center gap-2">
+                      <Wifi className="h-3.5 w-3.5 text-lime" />
+                      Ping{" "}
+                      <span className={`font-bold ${pingAppearance.textClass}`}>
+                        {pingAppearance.value}
+                      </span>
+                      <span className="text-cream-muted/60">{transportLabel}</span>
+                    </span>
+                  </div>
+                  <div className="rounded-full border border-white/10 bg-espresso/80 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-cream-muted">
                     Room{" "}
                     <span className="text-lime">{gameState.gameId}</span>
                   </div>
@@ -742,6 +941,20 @@ export default function Game({
                       <span className="text-cream-muted">Status</span>
                       <span className="font-mono text-sm font-bold text-cream">
                         {connectionStatus === "game_over" ? "Finished" : "Live"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 border-b border-white/6 pb-4">
+                      <span className="text-cream-muted">Ping</span>
+                      <span className="flex items-center gap-2 font-mono text-sm font-bold">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${pingAppearance.dotClass}`}
+                        />
+                        <span className={pingAppearance.textClass}>
+                          {pingAppearance.value}
+                        </span>
+                        <span className="text-cream-muted/70">
+                          {pingAppearance.tone} · {transportLabel}
+                        </span>
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-4">

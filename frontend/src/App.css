@@ -1,0 +1,260 @@
+@import "../../node_modules/chessground/assets/chessground.base.css";
+@import "../../node_modules/chessground/assets/chessground.brown.css";
+@import "../../node_modules/chessground/assets/chessground.cburnett.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design Tokens ──────────────────────────────────── */
+
+:root {
+  --background: #2c211f;
+  --foreground: #f0eadc;
+  --foreground-rgb: 240, 234, 220;
+  --espresso: #2c211f;
+  --mocha: #382b27;
+  --mocha-soft: #4a3933;
+  --espresso-deep: #241b19;
+  --cream: #f0eadc;
+  --cream-muted: #d8d0c0;
+  --cream-faint: rgba(240, 234, 220, 0.62);
+  --lime: #c8ff00;
+  --lime-hover: #d4ff33;
+  --lime-muted: rgba(200, 255, 0, 0.15);
+  --danger: #ff6b5f;
+}
+
+/* ── Base Styles ────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-color: rgba(200, 255, 0, 0.58) rgba(36, 27, 25, 0.96);
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar {
+  width: 14px;
+}
+
+html::-webkit-scrollbar-track {
+  background: linear-gradient(
+    180deg,
+    rgba(56, 43, 39, 0.88) 0%,
+    rgba(36, 27, 25, 0.98) 100%
+  );
+  border-left: 1px solid rgba(240, 234, 220, 0.08);
+}
+
+html::-webkit-scrollbar-thumb {
+  border: 3px solid rgba(44, 33, 31, 0.92);
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(216, 208, 192, 0.82) 0%,
+    rgba(200, 255, 0, 0.72) 100%
+  );
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    0 0 10px rgba(200, 255, 0, 0.18);
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(240, 234, 220, 0.94) 0%,
+    rgba(212, 255, 51, 0.86) 100%
+  );
+}
+
+body {
+  min-height: 100vh;
+  background: var(--background);
+  color: rgb(var(--foreground-rgb));
+  background-image:
+    radial-gradient(circle at top, rgba(200, 255, 0, 0.11), transparent 28rem),
+    radial-gradient(
+      circle at 85% 18%,
+      rgba(240, 234, 220, 0.08),
+      transparent 18rem
+    ),
+    radial-gradient(
+      circle at 10% 100%,
+      rgba(56, 43, 39, 0.88),
+      transparent 24rem
+    ),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--lime);
+  color: var(--espresso);
+}
+
+/* ── Utility Classes ────────────────────────────────── */
+
+.bg-tactile-gradient {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.text-shadow-sm {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.text-shadow-lime {
+  text-shadow: 0 0 12px rgba(200, 255, 0, 0.4);
+}
+
+/* ── Victory Animations ─────────────────────────────── */
+
+@keyframes victory-square-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0.88;
+    transform: scale(1);
+  }
+}
+
+@keyframes victory-crown-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.28) rotate(-14deg);
+  }
+  28% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.22) rotate(6deg);
+  }
+  62% {
+    transform: translateY(-4px) scale(1.1) rotate(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes victory-capture-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  18% {
+    opacity: 0.95;
+    transform: scale(1.05);
+  }
+  55% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes victory-ring-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  24% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+
+@keyframes victory-burst-particle {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(
+        calc(var(--particle-x) * 0.35),
+        calc(var(--particle-y) * 0.35)
+      )
+      scale(1) rotate(90deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--particle-x), var(--particle-y)) scale(0.55)
+      rotate(240deg);
+  }
+}
+
+@keyframes victory-arc-sweep {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(var(--arc-rotation, 0deg));
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1) rotate(var(--arc-rotation, 0deg));
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.45) rotate(calc(var(--arc-rotation, 0deg) + 26deg));
+  }
+}
+
+/* ── Chessground Overrides ──────────────────────────── */
+
+.cg-wrap cg-board {
+  background-color: #8b7355 !important;
+  background-image: url("/images/board/wood2.jpg") !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+
+.cg-wrap {
+  overflow: hidden;
+  border-radius: 1.5rem;
+}
+
+.cg-wrap coords {
+  color: rgba(240, 234, 220, 0.72) !important;
+  font-family:
+    ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace !important;
+  font-size: 10px !important;
+}
+
+.cg-wrap cg-board piece.premove-piece {
+  opacity: 0.42 !important;
+  filter: grayscale(1) brightness(1.35) contrast(0.9) !important;
+}
+
+/* Explicit Piece Image Paths */
+.cg-wrap piece.pawn.white { background-image: url('/pieces/cburnett/wP.svg') !important; }
+.cg-wrap piece.bishop.white { background-image: url('/pieces/cburnett/wB.svg') !important; }
+.cg-wrap piece.knight.white { background-image: url('/pieces/cburnett/wN.svg') !important; }
+.cg-wrap piece.rook.white { background-image: url('/pieces/cburnett/wR.svg') !important; }
+.cg-wrap piece.queen.white { background-image: url('/pieces/cburnett/wQ.svg') !important; }
+.cg-wrap piece.king.white { background-image: url('/pieces/cburnett/wK.svg') !important; }
+.cg-wrap piece.pawn.black { background-image: url('/pieces/cburnett/bP.svg') !important; }
+.cg-wrap piece.bishop.black { background-image: url('/pieces/cburnett/bB.svg') !important; }
+.cg-wrap piece.knight.black { background-image: url('/pieces/cburnett/bN.svg') !important; }
+.cg-wrap piece.rook.black { background-image: url('/pieces/cburnett/bR.svg') !important; }
+.cg-wrap piece.queen.black { background-image: url('/pieces/cburnett/bQ.svg') !important; }
+.cg-wrap piece.king.black { background-image: url('/pieces/cburnett/bK.svg') !important; }

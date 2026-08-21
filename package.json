@@ -1,39 +1,17 @@
 {
-  "name": "simultaneous-chess",
-  "version": "0.1.0",
+  "name": "checkless",
+  "version": "1.0.0",
   "private": true,
+  "description": "Simultaneous chess — no turns, just chaos. React + Express + Prisma.",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "server": "node server.js",
-    "dev:full": "concurrently \"npm run server\" \"npm run dev\""
-  },
-  "dependencies": {
-    "@vercel/analytics": "^2.0.1",
-    "@vercel/speed-insights": "^2.0.0",
-    "canvas-confetti": "^1.9.4",
-    "chessground": "^8.3.0",
-    "concurrently": "^9.2.1",
-    "express": "^5.2.1",
-    "framer-motion": "^12.38.0",
-    "lucide-react": "^1.8.0",
-    "next": "16.2.3",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3",
-    "zustand": "^5.0.12"
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "format": "prettier --write \"**/*.{js,jsx,json,css,md}\""
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.3",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "concurrently": "^9.2.1",
+    "prettier": "^3.5.3"
   }
 }

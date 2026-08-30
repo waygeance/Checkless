@@ -10,6 +10,7 @@
     "format": "prettier --write \"src/**/*.{js,jsx,css}\""
   },
   "dependencies": {
+    "@clerk/react": "^6.14.8",
     "canvas-confetti": "^1.9.4",
     "chessground": "^8.3.0",
     "framer-motion": "^12.38.0",

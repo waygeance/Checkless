@@ -11,16 +11,23 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const { PrismaClient } = require("@prisma/client");
+const { createAppClerkClient } = require("./auth/clerk");
+const { createSocketAuthMiddleware } = require("./auth/socket");
 const { buildAllowedOrigins, isAllowedOrigin } = require("./utils/cors");
 const { startTimerTick, registerHandlers } = require("./socket/handlers");
 
 const app = express();
 const server = http.createServer(app);
 const prisma = new PrismaClient();
+const clerkClient = createAppClerkClient();
 
 const PORT = Number(process.env.PORT) || 8081;
 const HOST = process.env.HOST || "0.0.0.0";
 const allowedOrigins = buildAllowedOrigins(process.env.CORS_ORIGIN);
+const authorizedParties =
+  allowedOrigins.length > 0
+    ? allowedOrigins
+    : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 // ── Socket.io ───────────────────────────────────────
 
@@ -42,6 +49,14 @@ const io = new Server(server, {
     credentials: true
   }
 });
+
+io.use(
+  createSocketAuthMiddleware({
+    prisma,
+    clerkClient,
+    authorizedParties
+  })
+);
 
 // ── REST Endpoints ──────────────────────────────────
 

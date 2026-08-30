@@ -16,6 +16,7 @@
     "format": "prettier --write \"src/**/*.js\""
   },
   "dependencies": {
+    "@clerk/express": "^2.1.64",
     "@prisma/client": "^6.8.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",

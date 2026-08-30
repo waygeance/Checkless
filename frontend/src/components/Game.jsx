@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/react";
 import {
   AlertCircle,
   Clock3,
@@ -122,6 +123,7 @@ function getTransportLabel(transportName) {
 }
 
 export default function Game({ initialVariant = "3s", autoStart = false }) {
+  const { getToken } = useAuth();
   const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
   const autoStartQueuedRef = useRef(false);
@@ -177,6 +179,11 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
 
   useEffect(() => {
     const newSocket = io(SOCKET_URL, {
+      auth: (callback) => {
+        getToken()
+          .then((token) => callback({ token }))
+          .catch(() => callback({ token: null }));
+      },
       timeout: 5000,
       transports: ["websocket", "polling"],
       tryAllTransports: true,
@@ -314,10 +321,17 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
       );
     });
 
-    newSocket.on("connect_error", () => {
+    newSocket.on("connect_error", (error) => {
       resetVictoryPresentation();
       setConnectionStatus("disconnected");
-      setMessage("Failed to connect to the game server.");
+      setMessage(
+        error?.message === "ACCOUNT_SUSPENDED"
+          ? "This account is suspended and cannot join games."
+          : error?.message === "AUTH_REQUIRED" ||
+              error?.message === "AUTH_INVALID"
+            ? "Your login session could not be verified. Please sign in again."
+            : "Failed to connect to the game server."
+      );
       clearLatencyInterval();
       removeEngineListeners?.();
       removeEngineListeners = null;
@@ -512,7 +526,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
       removeEngineListeners?.();
       newSocket.close();
     };
-  }, [clearVictorySequenceTimers, resetVictoryPresentation]);
+  }, [clearVictorySequenceTimers, getToken, resetVictoryPresentation]);
 
   useEffect(() => {
     if (!autoStart) return;

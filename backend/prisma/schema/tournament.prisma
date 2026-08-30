@@ -1,24 +1,24 @@
 model Tournament {
-  id          String           @id @default(cuid())
-  hostId      String
-  name        String
-  description String?
-  format      TournamentFormat
-  access      TournamentAccess @default(PUBLIC)
-  joinCode    String?          @unique
-  status      TournamentStatus @default(DRAFT)
-  variant     GameVariant
-  rated       Boolean          @default(false)
-  maxPlayers  Int
+  id                   String           @id @default(cuid())
+  hostId               String
+  name                 String
+  description          String?
+  format               TournamentFormat
+  access               TournamentAccess @default(PUBLIC)
+  joinCode             String?          @unique
+  status               TournamentStatus @default(DRAFT)
+  variant              GameVariant
+  rated                Boolean          @default(false)
+  maxPlayers           Int
   /// For SWISS: number of rounds is pre-defined. For ROUND_ROBIN: computed from participant count.
   roundCount           Int?
-  currentRound         Int      @default(0)
+  currentRound         Int              @default(0)
   settings             Json?
   registrationClosesAt DateTime?
   startsAt             DateTime?
   completedAt          DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   host         User                    @relation("TournamentHost", fields: [hostId], references: [id], onDelete: Restrict)
   participants TournamentParticipant[]
@@ -31,17 +31,17 @@ model Tournament {
 }
 
 model TournamentParticipant {
-  id           String                      @id @default(cuid())
-  tournamentId String
-  userId       String
-  status       TournamentParticipantStatus @default(REGISTERED)
+  id            String                      @id @default(cuid())
+  tournamentId  String
+  userId        String
+  status        TournamentParticipantStatus @default(REGISTERED)
   /// NULL until seeding is assigned. Multiple NULL seeds in a tournament are allowed (NULLs are not considered duplicates by the unique constraint).
-  seed         Int?
-  score        Float                       @default(0)
-  tieBreakScore Float                      @default(0)
-  finalRank    Int?
-  joinedAt     DateTime                    @default(now())
-  withdrawnAt  DateTime?
+  seed          Int?
+  score         Float                       @default(0)
+  tieBreakScore Float                       @default(0)
+  finalRank     Int?
+  joinedAt      DateTime                    @default(now())
+  withdrawnAt   DateTime?
 
   tournament    Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)

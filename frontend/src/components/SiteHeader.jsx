@@ -1,4 +1,10 @@
 import { useEffect, useState } from "react";
+import {
+  Show,
+  SignInButton,
+  SignUpButton,
+  UserButton
+} from "@clerk/react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 
@@ -92,9 +98,28 @@ export function SiteHeader({ active = "home", roomId }) {
             </div>
           )}
 
-          <span className="hidden px-3 py-2 text-sm font-medium text-cream-muted/75 sm:inline-flex">
-            Login Soon
-          </span>
+          <Show when="signed-out">
+            <SignInButton mode="modal" fallbackRedirectUrl="/play">
+              <button className="hidden px-3 py-2 text-sm font-medium text-cream-muted transition-colors hover:text-cream sm:inline-flex">
+                Log in
+              </button>
+            </SignInButton>
+            <SignUpButton mode="modal" fallbackRedirectUrl="/play">
+              <button className="hidden rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-cream transition-colors hover:border-lime/50 hover:text-lime md:inline-flex">
+                Create profile
+              </button>
+            </SignUpButton>
+          </Show>
+
+          <Show when="signed-in">
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "h-10 w-10 ring-2 ring-lime/50"
+                }
+              }}
+            />
+          </Show>
 
           <Link
             to={primaryCta.href}

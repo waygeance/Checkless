@@ -6,6 +6,7 @@ This guide explains how to get the Checkless development environment running loc
 - **Node.js** (v18+)
 - **npm** (v9+)
 - A **Neon PostgreSQL** database connection string (or a local PostgreSQL instance).
+- A **Clerk development application**.
 
 ## 1. Clone & Install
 Clone the repository, then install dependencies for both the frontend and backend.
@@ -40,9 +41,22 @@ CORS_ORIGIN="http://localhost:5173"
 # Frontend Configuration
 VITE_SOCKET_URL="http://localhost:8081"
 
+# Clerk authentication
+VITE_CLERK_PUBLISHABLE_KEY="pk_test_..."
+CLERK_SECRET_KEY="sk_test_..."
+
 # Neon PostgreSQL connection string
 DATABASE_URL="postgresql://user:password@host/neondb?sslmode=require"
 ```
+
+Get the Clerk keys from the API Keys page of the Clerk Dashboard. The
+publishable key is used by the Vite frontend. `CLERK_SECRET_KEY` is backend-only
+and must never use a `VITE_` prefix or be committed.
+
+Enable usernames for the Clerk development instance so newly created accounts
+can use the same searchable username in Checkless. If a test user does not yet
+have a Clerk username, the backend assigns a stable `player-xxxxxxxx` fallback
+until the Clerk profile is updated.
 
 *Note: The frontend Vite config automatically pulls environment variables starting with `VITE_` from the root `.env` directory.*
 
@@ -72,6 +86,14 @@ npm run dev
 
 The frontend will be available at `http://localhost:5173`.
 The backend socket server runs on `http://localhost:8081`.
+
+Open `/sign-up` to create the first test profile. `/play` is protected and
+redirects signed-out visitors to Clerk sign-in. After sign-in, the Socket.IO
+handshake sends a short-lived Clerk session token; the backend verifies it and
+creates or updates the local Prisma `User` before accepting the connection.
+During profile synchronization, self-service deletion is disabled on the Clerk
+user so the account can be logged out or suspended without breaking game
+history.
 
 ## Code Style
 This project uses Prettier for formatting. The user prefers Allman style (curly braces on new lines) and minimal punctuation.

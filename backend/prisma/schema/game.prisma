@@ -53,24 +53,24 @@ model GameParticipant {
 }
 
 model GameMove {
-  id             String     @id @default(cuid())
-  gameId         String
-  participantId  String
-  sequence       Int
-  clientMoveId   String?
+  id                   String     @id @default(cuid())
+  gameId               String
+  participantId        String
+  sequence             Int
+  clientMoveId         String?
   /// Derived from GameParticipant.color — stored here to avoid a join on hot read paths.
-  color          ChessColor
-  fromSquare     String
-  toSquare       String
-  piece          String
-  capturedPiece  String?
-  promotionPiece String?
-  fenAfter       String
+  color                ChessColor
+  fromSquare           String
+  toSquare             String
+  piece                String
+  capturedPiece        String?
+  promotionPiece       String?
+  fenAfter             String
   /// Milliseconds elapsed on this player's cooldown timer before this move was submitted.
   elapsedMs            Int
   whiteCooldownMsAfter Int
   blackCooldownMsAfter Int
-  acceptedAt           DateTime @default(now())
+  acceptedAt           DateTime   @default(now())
 
   game        Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
   participant GameParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)

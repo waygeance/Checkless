@@ -39,12 +39,12 @@ model User {
 }
 
 model GuestIdentity {
-  id          String   @id @default(cuid())
-  publicAlias String
-  tokenVersion Int     @default(1)
-  firstSeenAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  publicAlias  String
+  tokenVersion Int      @default(1)
+  firstSeenAt  DateTime @default(now())
   /// Auto-updated on every row change — reflects last connection time.
-  lastSeenAt  DateTime @updatedAt
+  lastSeenAt   DateTime @updatedAt
 
   gameParticipants GameParticipant[]
 

@@ -1,0 +1,128 @@
+// ─── User ────────────────────────────────────────────────────────────────────
+
+enum UserKind {
+  HUMAN
+  BOT
+}
+
+enum UserRole {
+  PLAYER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// ─── Game ────────────────────────────────────────────────────────────────────
+
+enum GameVariant {
+  ONE_SECOND
+  THREE_SECONDS
+  FIVE_SECONDS
+}
+
+enum GameMode {
+  CASUAL
+  RANKED
+  CHALLENGE
+  TOURNAMENT
+}
+
+enum GameStatus {
+  ACTIVE
+  COMPLETED
+  ABORTED
+  INTERRUPTED
+}
+
+enum GameOutcome {
+  WIN
+  LOSS
+  NO_RESULT
+}
+
+enum GameEndReason {
+  KING_CAPTURED
+  DISCONNECT_FORFEIT
+  RESIGNATION
+  ABORTED
+  SERVER_INTERRUPTED
+  ADMIN_TERMINATED
+}
+
+enum ChessColor {
+  WHITE
+  BLACK
+}
+
+// ─── Social ──────────────────────────────────────────────────────────────────
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELED
+}
+
+// ─── Challenge ───────────────────────────────────────────────────────────────
+
+enum ChallengeStatus {
+  OPEN
+  ACCEPTED
+  STARTED
+  COMPLETED
+  EXPIRED
+  CANCELED
+}
+
+// ─── Tournament ──────────────────────────────────────────────────────────────
+
+enum TournamentFormat {
+  ROUND_ROBIN
+  SWISS
+}
+
+enum TournamentAccess {
+  PUBLIC
+  CODE
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION
+  ACTIVE
+  COMPLETED
+  CANCELED
+}
+
+enum TournamentParticipantStatus {
+  REGISTERED
+  ACTIVE
+  WITHDRAWN
+  DISQUALIFIED
+  COMPLETED
+}
+
+enum TournamentRoundStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+}
+
+enum TournamentPairingResult {
+  PENDING
+  WHITE_WIN
+  BLACK_WIN
+  BYE
+  NO_RESULT
+}
+
+enum TournamentInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELED
+  EXPIRED
+}

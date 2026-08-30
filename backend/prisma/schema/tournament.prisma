@@ -1,0 +1,113 @@
+model Tournament {
+  id          String           @id @default(cuid())
+  hostId      String
+  name        String
+  description String?
+  format      TournamentFormat
+  access      TournamentAccess @default(PUBLIC)
+  joinCode    String?          @unique
+  status      TournamentStatus @default(DRAFT)
+  variant     GameVariant
+  rated       Boolean          @default(false)
+  maxPlayers  Int
+  /// For SWISS: number of rounds is pre-defined. For ROUND_ROBIN: computed from participant count.
+  roundCount           Int?
+  currentRound         Int      @default(0)
+  settings             Json?
+  registrationClosesAt DateTime?
+  startsAt             DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  host         User                    @relation("TournamentHost", fields: [hostId], references: [id], onDelete: Restrict)
+  participants TournamentParticipant[]
+  rounds       TournamentRound[]
+  invites      TournamentInvite[]
+
+  @@index([status, access, createdAt])
+  @@index([hostId, status, createdAt])
+  @@index([startsAt])
+}
+
+model TournamentParticipant {
+  id           String                      @id @default(cuid())
+  tournamentId String
+  userId       String
+  status       TournamentParticipantStatus @default(REGISTERED)
+  /// NULL until seeding is assigned. Multiple NULL seeds in a tournament are allowed (NULLs are not considered duplicates by the unique constraint).
+  seed         Int?
+  score        Float                       @default(0)
+  tieBreakScore Float                      @default(0)
+  finalRank    Int?
+  joinedAt     DateTime                    @default(now())
+  withdrawnAt  DateTime?
+
+  tournament    Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  whitePairings TournamentPairing[] @relation("TournamentWhiteParticipant")
+  blackPairings TournamentPairing[] @relation("TournamentBlackParticipant")
+
+  @@unique([tournamentId, userId])
+  @@unique([tournamentId, seed])
+  @@index([tournamentId, score, tieBreakScore])
+  @@index([userId, joinedAt])
+}
+
+model TournamentRound {
+  id           String                @id @default(cuid())
+  tournamentId String
+  number       Int
+  status       TournamentRoundStatus @default(PENDING)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime              @default(now())
+
+  tournament Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  pairings   TournamentPairing[]
+
+  @@unique([tournamentId, number])
+  @@index([tournamentId, status])
+}
+
+model TournamentPairing {
+  id                 String                  @id @default(cuid())
+  tournamentId       String
+  roundId            String
+  whiteParticipantId String?
+  blackParticipantId String?
+  gameId             String?                 @unique
+  boardNumber        Int
+  result             TournamentPairingResult @default(PENDING)
+  createdAt          DateTime                @default(now())
+  completedAt        DateTime?
+
+  round            TournamentRound        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  whiteParticipant TournamentParticipant? @relation("TournamentWhiteParticipant", fields: [whiteParticipantId], references: [id], onDelete: Restrict)
+  blackParticipant TournamentParticipant? @relation("TournamentBlackParticipant", fields: [blackParticipantId], references: [id], onDelete: Restrict)
+  game             Game?                  @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@unique([roundId, boardNumber])
+  @@index([tournamentId])
+  @@index([whiteParticipantId])
+  @@index([blackParticipantId])
+}
+
+model TournamentInvite {
+  id           String                 @id @default(cuid())
+  tournamentId String
+  senderId     String
+  recipientId  String
+  status       TournamentInviteStatus @default(PENDING)
+  expiresAt    DateTime?
+  createdAt    DateTime               @default(now())
+  respondedAt  DateTime?
+  updatedAt    DateTime               @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  sender     User       @relation("TournamentInviteSender", fields: [senderId], references: [id], onDelete: Restrict)
+  recipient  User       @relation("TournamentInviteRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@unique([tournamentId, recipientId])
+  @@index([recipientId, status, createdAt])
+}

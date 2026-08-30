@@ -1,0 +1,21 @@
+model Challenge {
+  id         String          @id @default(cuid())
+  code       String          @unique
+  hostId     String
+  opponentId String?
+  gameId     String?         @unique
+  variant    GameVariant
+  status     ChallengeStatus @default(OPEN)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  host     User  @relation("ChallengeHost", fields: [hostId], references: [id], onDelete: Restrict)
+  opponent User? @relation("ChallengeOpponent", fields: [opponentId], references: [id], onDelete: SetNull)
+  game     Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@index([hostId, status, createdAt])
+  @@index([opponentId, status, createdAt])
+  @@index([status, expiresAt])
+}

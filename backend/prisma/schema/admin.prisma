@@ -1,0 +1,18 @@
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String
+  targetUserId String?
+  targetGameId String?
+  action       String
+  reason       String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  actor      User  @relation("AdminActor", fields: [actorId], references: [id], onDelete: Restrict)
+  targetUser User? @relation("AuditTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetGame Game? @relation(fields: [targetGameId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([targetGameId, createdAt])
+}

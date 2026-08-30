@@ -1,0 +1,102 @@
+model Game {
+  id           String         @id @default(cuid())
+  mode         GameMode
+  variant      GameVariant
+  status       GameStatus     @default(ACTIVE)
+  rated        Boolean        @default(false)
+  rulesVersion Int            @default(1)
+  initialFen   String
+  finalFen     String?
+  winnerColor  ChessColor?
+  endReason    GameEndReason?
+  lastSequence Int            @default(0)
+  createdAt    DateTime       @default(now())
+  startedAt    DateTime       @default(now())
+  endedAt      DateTime?
+
+  participants      GameParticipant[]
+  moves             GameMove[]
+  challenge         Challenge?
+  tournamentPairing TournamentPairing?
+  auditLogs         AdminAuditLog[]
+
+  @@index([status, startedAt])
+  @@index([mode, variant, startedAt])
+  @@index([endedAt])
+}
+
+model GameParticipant {
+  id                  String      @id @default(cuid())
+  gameId              String
+  userId              String?
+  guestIdentityId     String?
+  color               ChessColor
+  outcome             GameOutcome @default(NO_RESULT)
+  usernameSnapshot    String
+  displayNameSnapshot String?
+  avatarUrlSnapshot   String?
+  ratingBefore        Int?
+  ratingAfter         Int?
+  ratingDelta         Int?
+  createdAt           DateTime    @default(now())
+
+  game          Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guestIdentity GuestIdentity? @relation(fields: [guestIdentityId], references: [id], onDelete: SetNull)
+  moves         GameMove[]
+
+  @@unique([gameId, color])
+  @@unique([gameId, userId])
+  @@unique([gameId, guestIdentityId])
+  @@index([userId, createdAt])
+  @@index([guestIdentityId, createdAt])
+}
+
+model GameMove {
+  id             String     @id @default(cuid())
+  gameId         String
+  participantId  String
+  sequence       Int
+  clientMoveId   String?
+  /// Derived from GameParticipant.color — stored here to avoid a join on hot read paths.
+  color          ChessColor
+  fromSquare     String
+  toSquare       String
+  piece          String
+  capturedPiece  String?
+  promotionPiece String?
+  fenAfter       String
+  /// Milliseconds elapsed on this player's cooldown timer before this move was submitted.
+  elapsedMs            Int
+  whiteCooldownMsAfter Int
+  blackCooldownMsAfter Int
+  acceptedAt           DateTime @default(now())
+
+  game        Game            @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  participant GameParticipant @relation(fields: [participantId], references: [id], onDelete: Restrict)
+
+  @@unique([gameId, sequence])
+  @@unique([gameId, clientMoveId])
+  @@index([participantId, acceptedAt])
+}
+
+model PlayerVariantStats {
+  id              String      @id @default(cuid())
+  userId          String
+  variant         GameVariant
+  rating          Int         @default(1200)
+  totalWins       Int         @default(0)
+  totalLosses     Int         @default(0)
+  totalNoResults  Int         @default(0)
+  rankedWins      Int         @default(0)
+  rankedLosses    Int         @default(0)
+  rankedNoResults Int         @default(0)
+  lastPlayedAt    DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, variant])
+  @@index([variant, rating])
+}

@@ -4,6 +4,9 @@
   "private": true,
   "description": "Checkless game server — Express + Socket.io + Prisma",
   "main": "src/index.js",
+  "prisma": {
+    "schema": "prisma/schema"
+  },
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",

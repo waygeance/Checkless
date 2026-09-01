@@ -1,8 +1,17 @@
 /**
  * Checkless — Game Server Entry Point
  *
- * Express REST endpoints + Socket.io real-time game server.
- * Prisma client is initialised here for future database operations.
+ * Bootstraps Express, Socket.io, and Prisma.
+ * Routes, middleware, and socket handlers are imported from their own layers.
+ *
+ * Layer map:
+ *   src/middlewares/   — Express and Socket.io middleware (auth, CORS, etc.)
+ *   src/routes/        — Express REST route definitions
+ *   src/services/      — Business logic (called by routes and websocket handlers)
+ *   src/validators/    — Zod schemas for request/payload validation
+ *   src/websocket/     — Socket.io event handlers
+ *   src/engine/        — Pure chess engine (no I/O, no side effects)
+ *   src/utils/         — Shared pure utility functions
  */
 
 require("dotenv").config({ path: "../.env" });
@@ -11,10 +20,14 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const { PrismaClient } = require("@prisma/client");
-const { createAppClerkClient } = require("./auth/clerk");
-const { createSocketAuthMiddleware } = require("./auth/socket");
+
+const { createAppClerkClient } = require("./middlewares/auth");
+const { createSocketAuthMiddleware } = require("./middlewares/socket-auth");
 const { buildAllowedOrigins, isAllowedOrigin } = require("./utils/cors");
-const { startTimerTick, registerHandlers } = require("./socket/handlers");
+const { startTimerTick, registerHandlers } = require("./websocket/handlers");
+const healthRouter = require("./routes/health");
+
+// ── Core Instances ───────────────────────────────────
 
 const app = express();
 const server = http.createServer(app);
@@ -29,7 +42,7 @@ const authorizedParties =
     ? allowedOrigins
     : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
-// ── Socket.io ───────────────────────────────────────
+// ── Socket.io ────────────────────────────────────────
 
 const io = new Server(server, {
   cors: {
@@ -58,32 +71,31 @@ io.use(
   })
 );
 
-// ── REST Endpoints ──────────────────────────────────
+// ── Express Middleware ───────────────────────────────
 
-app.get("/", (_req, res) => {
-  res.status(200).json({
-    ok: true,
-    service: "checkless-backend",
-    message: "Realtime game server is running.",
-    health: "/health",
-    socketPath: "/socket.io/"
-  });
-});
+app.use(express.json());
 
-app.get("/health", (_req, res) => {
-  res.status(200).json({ ok: true });
-});
+// ── Routes ───────────────────────────────────────────
 
-// ── Start ───────────────────────────────────────────
+app.use("/", healthRouter);
+
+// Future routes go here:
+// app.use("/api/users",       require("./routes/users"));
+// app.use("/api/games",       require("./routes/games"));
+// app.use("/api/friends",     require("./routes/friends"));
+// app.use("/api/challenges",  require("./routes/challenges"));
+
+// ── WebSocket ────────────────────────────────────────
 
 io.on("connection", (socket) => registerHandlers(io, socket));
 startTimerTick(io);
+
+// ── Start ────────────────────────────────────────────
 
 server.listen(PORT, HOST, () => {
   console.log(`✓ Checkless server running on ${HOST}:${PORT}`);
 });
 
-// Graceful shutdown
 process.on("SIGINT", async () => {
   await prisma.$disconnect();
   process.exit(0);

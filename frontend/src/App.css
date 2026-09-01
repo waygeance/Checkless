@@ -9,15 +9,15 @@
 /* ── Design Tokens ──────────────────────────────────── */
 
 :root {
-  --background: #2c211f;
-  --foreground: #f0eadc;
-  --foreground-rgb: 240, 234, 220;
-  --espresso: #2c211f;
-  --mocha: #382b27;
-  --mocha-soft: #4a3933;
-  --espresso-deep: #241b19;
-  --cream: #f0eadc;
-  --cream-muted: #d8d0c0;
+  --background: #130f0c;
+  --foreground: #f2e7cf;
+  --foreground-rgb: 242, 231, 207;
+  --espresso: #211611;
+  --mocha: #38251b;
+  --mocha-soft: #4a3024;
+  --espresso-deep: #18100d;
+  --cream: #f2e7cf;
+  --cream-muted: #d3c5ad;
   --cream-faint: rgba(240, 234, 220, 0.62);
   --lime: #c8ff00;
   --lime-hover: #d4ff33;
@@ -25,20 +25,21 @@
   --danger: #ff6b5f;
 
   /* Clerk v6 CSS custom properties — forces these to cascade to all cl-* elements */
-  --clerk-color-primary:          #c8ff00;
-  --clerk-color-background:       #241a16;
-  --clerk-color-text:             #f0eadc;
-  --clerk-color-text-secondary:   #d8d0c0;
-  --clerk-color-input:            #1c1410;
+  --clerk-color-primary: #c8ff00;
+  --clerk-color-background: #241a16;
+  --clerk-color-text: #f0eadc;
+  --clerk-color-text-secondary: #d8d0c0;
+  --clerk-color-input: #1c1410;
   --clerk-color-input-foreground: #f0eadc;
   --clerk-color-input-foreground-secondary: #d8d0c0;
-  --clerk-color-danger:           #ff6b5f;
-  --clerk-color-success:          #4ade80;
-  --clerk-color-neutral:          #d8d0c0;
-  --clerk-color-modal-backdrop:   rgba(0, 0, 0, 0.72);
-  --clerk-font-family:            'Segoe UI', 'Helvetica Neue', Arial, ui-sans-serif, system-ui, sans-serif;
-  --clerk-border-radius:          0.875rem;
-  --clerk-font-size-sm:           0.8125rem;
+  --clerk-color-danger: #ff6b5f;
+  --clerk-color-success: #4ade80;
+  --clerk-color-neutral: #d8d0c0;
+  --clerk-color-modal-backdrop: rgba(0, 0, 0, 0.72);
+  --clerk-font-family:
+    "Segoe UI", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+  --clerk-border-radius: 0.875rem;
+  --clerk-font-size-sm: 0.8125rem;
 }
 
 /* ── Base Styles ────────────────────────────────────── */
@@ -92,7 +93,7 @@ body {
   background: var(--background);
   color: rgb(var(--foreground-rgb));
   background-image:
-    radial-gradient(circle at top, rgba(200, 255, 0, 0.11), transparent 28rem),
+    radial-gradient(circle at top, rgba(194, 216, 46, 0.07), transparent 28rem),
     radial-gradient(
       circle at 85% 18%,
       rgba(240, 234, 220, 0.08),
@@ -104,6 +105,24 @@ body {
       transparent 24rem
     ),
     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
 }
 
 ::selection {
@@ -372,8 +391,12 @@ body {
   color: #1a1400 !important;
   font-weight: 700 !important;
   border: none !important;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 16px rgba(200, 255, 0, 0.15) !important;
-  transition: background-color 0.15s ease, transform 0.1s ease !important;
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.35),
+    0 0 16px rgba(200, 255, 0, 0.15) !important;
+  transition:
+    background-color 0.15s ease,
+    transform 0.1s ease !important;
 }
 
 .cl-formButtonPrimary:hover,
@@ -414,7 +437,9 @@ body {
   background-color: #382b27 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #f0eadc !important;
-  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease !important;
 }
 
 .cl-socialButtonsBlockButton:hover {

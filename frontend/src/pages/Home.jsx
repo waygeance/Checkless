@@ -1,414 +1,238 @@
-import { Link } from "react-router-dom";
+import { Show, SignInButton, SignUpButton } from "@clerk/react";
 import { motion } from "framer-motion";
-import {
-  ChevronRight,
-  Clock3,
-  Lock,
-  Shield,
-  Trophy,
-  Users,
-  Zap
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import BorderGlow from "../components/BorderGlow";
+import { ArrowRight, Clock3, Eye, Radio, Shield, Swords } from "lucide-react";
+import { useEffect } from "react";
+import { MiniBoard } from "../components/app/MiniBoard";
+import { Badge, Button, Card, SketchDivider } from "../components/ui";
 import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
+import { liveGames } from "../data/platform";
 
-const HERO_VIDEO_MP4_SRC = "/videos/home-hero.mp4";
-const HERO_VIDEO_POSTER_SRC = "/images/home-hero-poster.jpg";
-const HERO_VIDEO_DESKTOP_QUERY = "(min-width: 768px)";
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: "easeOut" }
-  }
-};
-
-const casualVariants = ["1s", "3s", "5s"];
-
-const featureCards = [
+const steps = [
   {
-    icon: Zap,
-    title: "Real-Time Action",
-    description:
-      "Pieces move simultaneously. Every second becomes a prediction problem."
+    number: "I",
+    icon: Swords,
+    title: "Both players move",
+    text: "There are no turns. Read the same changing board together."
   },
   {
-    icon: Shield,
-    title: "No Checkmate",
-    description:
-      "Kings are hunted, not protected by slow move trees. Capture ends the match."
-  },
-  {
-    icon: Trophy,
-    title: "Ranked Soon",
-    description:
-      "Casual queues are live today while account and ladder systems finish baking."
-  }
-];
-
-const ruleCards = [
-  {
-    icon: Users,
-    title: "Independent Timers",
-    description: "Both players recharge and move on separate cooldowns."
-  },
-  {
+    number: "II",
     icon: Clock3,
-    title: "Tempo Wins",
-    description: "When your timer hits zero, you move. Fast reads matter more."
+    title: "Your clock recharges",
+    text: "After every accepted move, your 1s, 3s, or 5s cooldown begins."
   },
   {
+    number: "III",
     icon: Shield,
-    title: "King Capture",
-    description: "No checkmate sequence. If the king falls, the game is over."
+    title: "Capture the king",
+    text: "No check or checkmate. The first accepted king capture wins."
   }
 ];
-
-function subscribeToMediaQuery(query, listener) {
-  const handleChange = () => listener();
-
-  if ("addEventListener" in query) {
-    query.addEventListener("change", handleChange);
-    return () => query.removeEventListener("change", handleChange);
-  }
-
-  const legacyQuery = query;
-  legacyQuery.addListener?.(handleChange);
-  return () => legacyQuery.removeListener?.(handleChange);
-}
 
 export default function Home() {
-  const [hoveredVariant, setHoveredVariant] = useState(null);
-  const [heroVideoEnabled, setHeroVideoEnabled] = useState(false);
-  const [heroVideoReady, setHeroVideoReady] = useState(false);
-  const [heroVideoFailed, setHeroVideoFailed] = useState(false);
-
   useEffect(() => {
-    document.title = "Checkless — Simultaneous Chess";
+    document.title = "Checkless — Chess without turns";
   }, []);
-
-  useEffect(() => {
-    const reducedMotionQuery = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    );
-    const desktopQuery = window.matchMedia(HERO_VIDEO_DESKTOP_QUERY);
-
-    const syncHeroVideoPreference = () => {
-      setHeroVideoEnabled(desktopQuery.matches && !reducedMotionQuery.matches);
-    };
-
-    syncHeroVideoPreference();
-
-    const stopReducedMotionWatcher = subscribeToMediaQuery(
-      reducedMotionQuery,
-      syncHeroVideoPreference
-    );
-    const stopDesktopWatcher = subscribeToMediaQuery(
-      desktopQuery,
-      syncHeroVideoPreference
-    );
-
-    return () => {
-      stopReducedMotionWatcher();
-      stopDesktopWatcher();
-    };
-  }, []);
-
-  const shouldRenderHeroVideo = heroVideoEnabled && !heroVideoFailed;
 
   return (
-    <div className="min-h-screen overflow-hidden bg-espresso text-cream">
-      <SiteHeader active="home" />
-
-      <main className="relative overflow-hidden">
-        <section className="relative isolate overflow-hidden px-6 pb-14 pt-36 sm:pb-20 sm:pt-40">
-          <div
-            className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[40rem] overflow-hidden sm:h-[47rem]"
-            style={{
-              WebkitMaskImage:
-                "linear-gradient(180deg, #000 0%, #000 72%, rgba(0,0,0,0.7) 88%, transparent 100%)",
-              maskImage:
-                "linear-gradient(180deg, #000 0%, #000 72%, rgba(0,0,0,0.7) 88%, transparent 100%)"
-            }}
-          >
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 bg-cover bg-center opacity-30"
-              style={{ backgroundImage: `url(${HERO_VIDEO_POSTER_SRC})` }}
-            />
-
-            {shouldRenderHeroVideo ? (
-              <video
-                key={HERO_VIDEO_MP4_SRC}
-                aria-hidden="true"
-                tabIndex={-1}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                poster={HERO_VIDEO_POSTER_SRC}
-                disablePictureInPicture
-                controlsList="nofullscreen nodownload noplaybackrate noremoteplayback"
-                onLoadStart={() => setHeroVideoReady(false)}
-                onLoadedData={() => setHeroVideoReady(true)}
-                onError={() => {
-                  setHeroVideoReady(false);
-                  setHeroVideoFailed(true);
-                }}
-                className={`pointer-events-none absolute inset-0 h-full w-full scale-[1.02] select-none object-cover object-center transition-opacity duration-700 ${
-                  heroVideoReady ? "opacity-[0.52]" : "opacity-0"
-                } [filter:blur(0.85px)_brightness(0.78)_contrast(0.92)_saturate(0.84)]`}
-              >
-                <source src={HERO_VIDEO_MP4_SRC} type="video/mp4" />
-              </video>
-            ) : null}
-
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(44,33,31,0.18)_0%,rgba(44,33,31,0.44)_46%,rgba(44,33,31,0.94)_100%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(240,234,220,0.08),transparent_38%),linear-gradient(120deg,rgba(200,255,0,0.1)_0%,transparent_46%,rgba(240,234,220,0.05)_100%)] opacity-65" />
-          </div>
-
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[40rem] bg-[radial-gradient(circle_at_top,rgba(200,255,0,0.14),transparent_58%)] sm:h-[47rem]" />
-
-          <div className="relative z-20 mx-auto max-w-6xl">
+    <div className="min-h-screen overflow-hidden bg-roasted text-cream">
+      <SiteHeader active="landing" />
+      <main>
+        <section className="relative isolate min-h-[48rem] overflow-hidden px-5 pb-20 pt-36 sm:px-7 lg:pt-40">
+          <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,rgba(19,15,12,.98)_0%,rgba(19,15,12,.88)_42%,rgba(19,15,12,.4)_100%),url('/images/home-hero-poster.jpg')] bg-cover bg-center" />
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_72%_28%,rgba(194,216,46,.12),transparent_28rem)]" />
+          <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[minmax(0,.88fr)_minmax(28rem,1.12fr)]">
             <motion.div
-              className="mx-auto max-w-4xl text-center"
-              initial="hidden"
-              animate="visible"
-              variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65 }}
             >
-              <motion.div
-                variants={fadeUp}
-                className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-mocha/80 px-5 py-2 shadow-tactile backdrop-blur-sm"
-              >
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime" />
-                </span>
-                <span className="font-mono text-xs uppercase tracking-[0.24em] text-cream-muted">
-                  Match Servers Online
-                </span>
-              </motion.div>
-
-              <motion.h1
-                variants={fadeUp}
-                className="mt-10 font-display text-[clamp(3.4rem,11vw,7.4rem)] font-bold leading-[0.88] tracking-[-0.05em] text-cream text-shadow-sm"
-              >
-                NO TURNS.
+              <Badge tone="brass">
+                <Radio className="mr-1.5 h-3 w-3" /> Public tables open
+              </Badge>
+              <h1 className="mt-7 font-display text-[clamp(4.3rem,10vw,8.2rem)] font-semibold leading-[0.76] tracking-[-0.055em] text-cream">
+                Chess.
                 <br />
-                <span className="text-lime text-shadow-lime">JUST CHAOS.</span>
-              </motion.h1>
+                <span className="text-lime">No turns.</span>
+              </h1>
+              <p className="mt-8 max-w-xl text-lg leading-relaxed text-cream-muted">
+                A faster, stranger coffeehouse game. You and your opponent move
+                on independent cooldowns, and the king is captured in plain
+                sight.
+              </p>
+              <div className="mt-9 flex flex-wrap gap-3">
+                <Show when="signed-out">
+                  <SignUpButton mode="modal" fallbackRedirectUrl="/home">
+                    <Button size="large" icon={ArrowRight} iconPosition="right">
+                      Claim a table
+                    </Button>
+                  </SignUpButton>
+                </Show>
+                <Show when="signed-in">
+                  <Button
+                    to="/home"
+                    size="large"
+                    icon={ArrowRight}
+                    iconPosition="right"
+                  >
+                    Enter the coffeehouse
+                  </Button>
+                </Show>
+                <Button to="/watch" size="large" variant="outline" icon={Eye}>
+                  Watch live
+                </Button>
+              </div>
+              <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.2em] text-cream-muted/55">
+                Free to play · Public replays · No checkmate
+              </p>
+            </motion.div>
 
-              <motion.p
-                variants={fadeUp}
-                className="mx-auto mt-7 max-w-3xl text-lg leading-relaxed text-cream-muted sm:text-xl"
-              >
-                Simultaneous chess where both players recharge independently,
-                move under pressure, and finish games by capturing the king. The
-                designer’s espresso-and-lime identity now drives every page of
-                the experience.
-              </motion.p>
-
-              <motion.div
-                variants={fadeUp}
-                className="mt-10 flex flex-wrap items-center justify-center gap-4"
-              >
-                <Link
-                  to="/play?variant=3s"
-                  className="inline-flex items-center gap-2 rounded-full bg-lime px-7 py-4 font-display text-lg font-bold text-espresso shadow-tactile-btn transition-all duration-300 hover:bg-lime-hover active:translate-y-0.5 active:shadow-tactile-btn-pressed"
-                >
-                  Play 3s Queue
-                  <ChevronRight className="h-5 w-5" />
-                </Link>
-                <Link
-                  to="/#rules"
-                  className="inline-flex items-center rounded-full border border-white/12 bg-mocha/70 px-7 py-4 text-sm font-semibold uppercase tracking-[0.18em] text-cream transition-colors hover:border-lime/40 hover:text-lime"
-                >
-                  See Rules
-                </Link>
-              </motion.div>
+            <motion.div
+              initial={{ opacity: 0, rotate: 1.5, x: 20 }}
+              animate={{ opacity: 1, rotate: -1.2, x: 0 }}
+              transition={{ duration: 0.75, delay: 0.12 }}
+              className="relative hidden lg:block"
+            >
+              <div className="absolute -inset-5 rounded-[2rem] border border-brass/15 bg-walnut/45 shadow-[0_40px_100px_rgba(0,0,0,.55)]" />
+              <MiniBoard className="relative" />
+              <div className="absolute -bottom-8 -left-8 rounded-xl border border-brass/25 bg-roasted/95 px-5 py-4 shadow-2xl">
+                <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-cream-muted">
+                  Your cooldown
+                </p>
+                <p className="mt-1 font-mono text-3xl font-semibold text-lime">
+                  00.8
+                </p>
+              </div>
+              <div className="absolute -right-5 -top-7 rounded-full border border-wine/35 bg-roasted/95 px-4 py-3 font-mono text-xs text-wine-light shadow-2xl">
+                KING EXPOSED
+              </div>
             </motion.div>
           </div>
         </section>
 
-        <section className="relative px-6 pb-10 sm:pb-14">
-          <div className="mx-auto max-w-6xl">
-            <motion.div
-              id="features"
-              className="grid gap-6 md:grid-cols-3"
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-120px" }}
-              variants={{ visible: { transition: { staggerChildren: 0.12 } } }}
-            >
-              {featureCards.map((feature) => {
-                const Icon = feature.icon;
-
+        <section id="how-it-works" className="px-5 py-20 sm:px-7">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-2xl">
+              <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-brass-light">
+                House rules
+              </p>
+              <h2 className="mt-3 font-display text-5xl font-semibold sm:text-6xl">
+                Familiar pieces. Different pressure.
+              </h2>
+              <p className="mt-4 text-cream-muted">
+                The rules fit on the back of a café receipt.
+              </p>
+            </div>
+            <SketchDivider className="my-9 max-w-3xl" />
+            <div className="grid gap-5 lg:grid-cols-3">
+              {steps.map((step) => {
+                const Icon = step.icon;
                 return (
-                  <motion.div
-                    key={feature.title}
-                    variants={fadeUp}
-                    className="h-full"
-                  >
-                    <BorderGlow
-                      className="h-full"
-                      edgeSensitivity={38}
-                      glowColor="73 100 58"
-                      backgroundColor="var(--mocha)"
-                      borderRadius={28}
-                      glowRadius={26}
-                      glowIntensity={0.7}
-                      coneSpread={20}
-                      animated={false}
-                      fillOpacity={0.18}
-                      colors={["#d8ff5b", "#c8ff00", "#f0eadc"]}
-                    >
-                      <div className="relative flex h-full flex-col overflow-hidden rounded-[calc(1.75rem-1px)] p-7">
-                        <div className="pointer-events-none absolute inset-0 bg-tactile-gradient opacity-80" />
-                        <div className="relative mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-espresso text-lime shadow-inner">
-                          <Icon className="h-6 w-6" />
-                        </div>
-                        <h2 className="relative font-display text-2xl font-bold text-cream">
-                          {feature.title}
-                        </h2>
-                        <p className="relative mt-3 text-sm leading-relaxed text-cream-muted">
-                          {feature.description}
-                        </p>
-                      </div>
-                    </BorderGlow>
-                  </motion.div>
+                  <Card key={step.number} className="p-6">
+                    <div className="flex items-start justify-between">
+                      <span className="font-display text-4xl text-brass/60">
+                        {step.number}
+                      </span>
+                      <Icon className="h-5 w-5 text-lime" />
+                    </div>
+                    <h3 className="mt-9 font-display text-2xl font-semibold">
+                      {step.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-cream-muted">
+                      {step.text}
+                    </p>
+                  </Card>
                 );
               })}
-            </motion.div>
-          </div>
-        </section>
-
-        <section id="rules" className="px-6 py-8 sm:py-12">
-          <div className="mx-auto grid max-w-6xl gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <motion.div
-              initial={{ opacity: 0, x: -18 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-120px" }}
-              transition={{ duration: 0.6 }}
-              className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-mocha p-7 shadow-tactile bg-tactile-gradient sm:p-10"
-            >
-              <div className="pointer-events-none absolute right-0 top-0 h-56 w-56 rounded-full bg-lime/8 blur-[90px]" />
-              <div className="relative">
-                <span className="font-mono text-xs uppercase tracking-[0.24em] text-cream-muted">
-                  Matchmaking
-                </span>
-                <h2 className="mt-3 font-display text-4xl font-bold text-cream sm:text-5xl">
-                  CASUAL MATCH
-                </h2>
-                <p className="mt-3 max-w-xl text-lg text-cream-muted">
-                  Jump straight in. No account required. Pick the cooldown that
-                  fits your reflexes and enter the arena.
-                </p>
-
-                <div className="mt-9">
-                  <div className="font-mono text-xs uppercase tracking-[0.24em] text-cream-muted">
-                    Select Cooldown
-                  </div>
-                  <div className="mt-4 grid grid-cols-3 gap-3 sm:gap-4">
-                    {casualVariants.map((time) => (
-                      <Link
-                        key={time}
-                        to={`/play?variant=${time}`}
-                        onMouseEnter={() => setHoveredVariant(time)}
-                        onMouseLeave={() => setHoveredVariant(null)}
-                        className="group flex min-h-24 flex-col items-center justify-center rounded-[1.4rem] border border-lime/25 bg-espresso/60 px-4 py-5 font-mono text-lime transition-all duration-300 hover:-translate-y-1 hover:border-lime hover:bg-lime hover:text-espresso hover:shadow-tactile-lime sm:min-h-32"
-                      >
-                        <span className="text-3xl font-bold">{time}</span>
-                        <span className="mt-2 text-[10px] uppercase tracking-[0.28em] opacity-75">
-                          Cooldown
-                        </span>
-                        <span className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                          {hoveredVariant === time ? "Queue Now" : "Ready"}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-8 flex flex-wrap items-center gap-3">
-                  <div className="rounded-full border border-white/10 bg-espresso/75 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.22em] text-lime">
-                    Casual queue live
-                  </div>
-                  <div className="rounded-full border border-white/10 bg-espresso/75 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.22em] text-cream-muted">
-                    No login needed
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            <div className="grid gap-6">
-              <motion.div
-                initial={{ opacity: 0, x: 18 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: "-120px" }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="relative min-h-[19rem] overflow-hidden rounded-[2rem] border border-white/8 bg-mocha/78 p-7 shadow-tactile backdrop-blur-md sm:min-h-[21rem]"
-              >
-                <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.22)_0,rgba(0,0,0,0.22)_2px,transparent_2px,transparent_11px)] opacity-[0.1]" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[linear-gradient(180deg,rgba(56,43,39,0.76)_0%,rgba(44,33,31,0.84)_100%)] px-6 text-center backdrop-blur-xl sm:px-8">
-                  <div className="flex h-18 w-18 items-center justify-center rounded-full border border-white/10 bg-espresso/82 shadow-inner sm:h-20 sm:w-20">
-                    <Lock className="h-8 w-8 text-cream-muted/80 sm:h-9 sm:w-9" />
-                  </div>
-                  <div className="mt-6 font-display text-4xl font-bold leading-none text-cream/78 sm:text-[3.2rem]">
-                    RANKED MATCH
-                  </div>
-                  <p className="mt-4 max-w-md text-base leading-relaxed text-cream-muted/85 sm:text-lg">
-                    Authentication, ladders, and persistent ratings are coming
-                    next.
-                  </p>
-                </div>
-
-                <div className="scale-[1.02] select-none opacity-15 blur-[8px]">
-                  <span className="font-mono text-xs uppercase tracking-[0.24em] text-cream-muted">
-                    Locked State
-                  </span>
-                  <h3 className="mt-3 font-display text-4xl font-bold text-cream">
-                    Seasonal pressure with real ratings.
-                  </h3>
-                  <button className="mt-8 w-full rounded-full border border-white/14 px-6 py-4 font-display text-lg font-bold text-cream-muted">
-                    Login To Enter Ranked
-                  </button>
-                </div>
-              </motion.div>
-
-              <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-                {ruleCards.map((rule) => {
-                  const Icon = rule.icon;
-
-                  return (
-                    <motion.div
-                      key={rule.title}
-                      initial={{ opacity: 0, y: 18 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: "-80px" }}
-                      transition={{ duration: 0.45 }}
-                      className="rounded-[1.5rem] border border-white/8 bg-mocha/85 p-5 shadow-tactile"
-                    >
-                      <Icon className="h-5 w-5 text-lime" />
-                      <h3 className="mt-4 font-display text-xl font-bold text-cream">
-                        {rule.title}
-                      </h3>
-                      <p className="mt-2 text-sm leading-relaxed text-cream-muted">
-                        {rule.description}
-                      </p>
-                    </motion.div>
-                  );
-                })}
-              </div>
             </div>
           </div>
         </section>
-      </main>
 
+        <section className="border-y border-cream/[0.07] bg-espresso-deep/70 px-5 py-20 sm:px-7">
+          <div className="mx-auto max-w-7xl">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-brass-light">
+                  Across the room
+                </p>
+                <h2 className="mt-3 font-display text-5xl font-semibold">
+                  Live public tables
+                </h2>
+              </div>
+              <Button
+                to="/watch"
+                variant="ghost"
+                icon={ArrowRight}
+                iconPosition="right"
+              >
+                See every table
+              </Button>
+            </div>
+            <div className="mt-9 grid gap-5 lg:grid-cols-3">
+              {liveGames.map((game) => (
+                <Card key={game.id} className="p-5">
+                  <div className="flex items-center justify-between">
+                    <Badge tone="danger">Live</Badge>
+                    <span className="font-mono text-xs text-cream-muted">
+                      {game.viewers} watching
+                    </span>
+                  </div>
+                  <h3 className="mt-6 font-display text-2xl font-semibold">
+                    {game.white}
+                  </h3>
+                  <p className="my-1 font-display italic text-brass-light">
+                    against
+                  </p>
+                  <h3 className="font-display text-2xl font-semibold">
+                    {game.black}
+                  </h3>
+                  <div className="mt-6 flex items-center justify-between border-t border-cream/[0.07] pt-4">
+                    <span className="font-mono text-xs text-cream-muted">
+                      {game.variant} · move {game.sequence}
+                    </span>
+                    <Button
+                      to={`/games/${game.id}`}
+                      variant="outline"
+                      size="small"
+                    >
+                      Watch
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-5 py-24 sm:px-7">
+          <Card tone="parchment" className="mx-auto max-w-7xl p-8 sm:p-12">
+            <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-wine">
+                  The next game is already changing
+                </p>
+                <h2 className="mt-3 font-display text-5xl font-semibold text-roasted">
+                  Pull up a chair.
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-roasted/65">
+                  Create your profile, choose a cooldown, and meet somebody at
+                  the board.
+                </p>
+              </div>
+              <Show when="signed-out">
+                <SignInButton mode="modal" fallbackRedirectUrl="/home">
+                  <Button size="large">Sign in to play</Button>
+                </SignInButton>
+              </Show>
+              <Show when="signed-in">
+                <Button to="/play" size="large">
+                  Find a game
+                </Button>
+              </Show>
+            </div>
+          </Card>
+        </section>
+      </main>
       <SiteFooter />
     </div>
   );

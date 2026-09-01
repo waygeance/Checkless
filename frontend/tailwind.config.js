@@ -4,35 +4,39 @@ export default {
   theme: {
     extend: {
       colors: {
-        espresso: "#2c211f",
-        "espresso-deep": "#241b19",
-        mocha: "#382b27",
-        "mocha-soft": "#4a3933",
-        cream: "#f0eadc",
-        "cream-muted": "#d8d0c0",
-        lime: "#c8ff00",
-        "lime-hover": "#d4ff33",
+        roasted: "#130f0c",
+        espresso: "#211611",
+        "espresso-deep": "#18100d",
+        mocha: "#38251b",
+        "mocha-soft": "#4a3024",
+        walnut: "#3a251b",
+        "coffee-leather": "#563727",
+        parchment: "#e7d5b5",
+        cream: "#f2e7cf",
+        "cream-muted": "#d3c5ad",
+        brass: "#b58a4a",
+        "brass-light": "#d3ad68",
+        wine: "#8c4038",
+        "wine-light": "#d36c60",
+        lime: "#c2d82e",
+        "lime-hover": "#d2e64a",
         "lime-muted": "rgba(200, 255, 0, 0.15)",
         danger: "#ff6b5f"
       },
       fontFamily: {
         display: [
-          "Segoe UI",
-          "Helvetica Neue",
-          "Arial",
-          "ui-sans-serif",
-          "system-ui",
-          "sans-serif"
+          "Fraunces Variable",
+          "Georgia",
+          "serif"
         ],
         sans: [
-          "Segoe UI",
-          "Helvetica Neue",
-          "Arial",
+          "IBM Plex Sans Variable",
           "ui-sans-serif",
           "system-ui",
           "sans-serif"
         ],
         mono: [
+          "IBM Plex Mono",
           "ui-monospace",
           "SFMono-Regular",
           "Menlo",

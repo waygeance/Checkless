@@ -1,4 +1,5 @@
 import { Crown, Swords } from "lucide-react";
+import { Button } from "./ui";
 
 const PIECE_SYMBOLS = {
   p: "♟",
@@ -68,12 +69,9 @@ export function VictoryScreen({
             </p>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-full rounded-full bg-lime px-6 py-4 font-display text-lg font-bold text-espresso shadow-tactile-btn transition-all duration-300 hover:bg-lime-hover active:translate-y-0.5 active:shadow-tactile-btn-pressed"
-          >
+          <Button onClick={onClose} size="large" className="w-full">
             Back To Lobby
-          </button>
+          </Button>
         </div>
       </div>
     </div>

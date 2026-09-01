@@ -1,4 +1,4 @@
-const { syncClerkUser } = require("./clerk");
+const { syncClerkUser } = require("../services/user");
 
 function createSocketAuthMiddleware({
   prisma,

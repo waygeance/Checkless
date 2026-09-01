@@ -1,126 +1,83 @@
-import { useEffect, useState } from "react";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/react";
-import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "./ui";
 
-const NAV_LINKS = [
-  { label: "Play", href: "/play", key: "play" },
-  { label: "Features", href: "/#features", key: "features" },
-  { label: "Rules", href: "/#rules", key: "rules" }
+const links = [
+  { label: "How it works", to: "/#how-it-works" },
+  { label: "Watch live", to: "/watch" },
+  { label: "Tournaments", to: "/tournaments" }
 ];
 
-export function SiteHeader({ active = "home", roomId }) {
-  const [isScrolled, setIsScrolled] = useState(active !== "home");
-
-  useEffect(() => {
-    if (active !== "home") {
-      setIsScrolled(true);
-      return;
-    }
-
-    const syncScrollState = () => {
-      setIsScrolled(window.scrollY > 24);
-    };
-
-    syncScrollState();
-    window.addEventListener("scroll", syncScrollState, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", syncScrollState);
-    };
-  }, [active]);
-
-  const primaryCta =
-    active === "play"
-      ? { label: "Back Home", href: "/" }
-      : { label: "Play Now", href: "/play" };
-
-  const shouldOverlayHero = active === "home" && !isScrolled;
+export function SiteHeader({ active = "public" }) {
+  const transparent = active === "landing";
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        shouldOverlayHero
-          ? "border-b border-transparent bg-transparent shadow-none backdrop-blur-0"
-          : "border-b border-white/5 bg-espresso/[0.82] shadow-[0_10px_36px_rgba(0,0,0,0.24)] backdrop-blur-xl"
-      }`}
+      className={`fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl ${transparent ? "border-cream/[0.06] bg-roasted/55" : "border-cream/[0.07] bg-roasted/90"}`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <Link to="/" className="group flex min-w-0 items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime shadow-tactile-lime transition-transform duration-300 group-hover:scale-105">
-            <img
-              src="/pieces/companion/wK.svg"
-              alt="Checkless king logo"
-              width={50}
-              height={50}
-              className="opacity-95 saturate-0"
-            />
+      <div className="mx-auto flex h-20 max-w-7xl items-center gap-5 px-5 sm:px-7">
+        <Link to="/" className="group flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-lime/35 bg-lime shadow-tactile-lime">
+            <img src="/pieces/companion/bK.svg" alt="" className="h-9 w-9" />
           </div>
-          <div className="min-w-0">
-            <span className="block truncate font-mono text-[10px] uppercase tracking-[0.28em] text-cream-muted/70">
-              Simultaneous Chess
+          <div>
+            <span className="block font-display text-xl font-semibold tracking-wide text-cream group-hover:text-lime">
+              Checkless
             </span>
-            <span className="block truncate font-display text-2xl font-bold tracking-tight text-cream transition-colors duration-300 group-hover:text-lime">
-              CHECKLESS
+            <span className="block font-mono text-[8px] uppercase tracking-[0.26em] text-brass-light">
+              Simultaneous chess
             </span>
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-7 lg:flex">
-          {NAV_LINKS.map((link) => {
-            const isActive = active === "play" && link.key === "play";
-
-            return (
-              <Link
-                key={link.label}
-                to={link.href}
-                className={`text-sm font-medium uppercase tracking-[0.18em] transition-colors ${
-                  isActive ? "text-lime" : "text-cream-muted hover:text-cream"
-                }`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+        <nav
+          className="ml-auto hidden items-center gap-7 lg:flex"
+          aria-label="Public navigation"
+        >
+          {links.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className="text-xs font-semibold uppercase tracking-[0.14em] text-cream-muted transition hover:text-cream"
+            >
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          {roomId && (
-            <div className="hidden rounded-full border border-white/10 bg-mocha/80 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.24em] text-cream-muted md:flex">
-              Room <span className="ml-2 text-lime">{roomId}</span>
-            </div>
-          )}
-
+        <div className="ml-auto flex items-center gap-2 lg:ml-5">
           <Show when="signed-out">
-            <SignInButton mode="modal" fallbackRedirectUrl="/play">
-              <button className="hidden px-3 py-2 text-sm font-medium text-cream-muted transition-colors hover:text-cream sm:inline-flex">
-                Log in
-              </button>
+            <SignInButton mode="modal" fallbackRedirectUrl="/home">
+              <Button
+                variant="ghost"
+                size="small"
+                className="hidden sm:inline-flex"
+              >
+                Sign in
+              </Button>
             </SignInButton>
-            <SignUpButton mode="modal" fallbackRedirectUrl="/play">
-              <button className="hidden rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-cream transition-colors hover:border-lime/50 hover:text-lime md:inline-flex">
-                Create profile
-              </button>
+            <SignUpButton mode="modal" fallbackRedirectUrl="/home">
+              <Button size="small" icon={ArrowUpRight} iconPosition="right">
+                Join
+              </Button>
             </SignUpButton>
           </Show>
-
           <Show when="signed-in">
+            <Button
+              to="/home"
+              size="small"
+              icon={ArrowUpRight}
+              iconPosition="right"
+            >
+              Dashboard
+            </Button>
             <UserButton
               appearance={{
-                elements: {
-                  avatarBox: "h-10 w-10 ring-2 ring-lime/50"
-                }
+                elements: { avatarBox: "h-9 w-9 ring-1 ring-brass/50" }
               }}
             />
           </Show>
-
-          <Link
-            to={primaryCta.href}
-            className="inline-flex items-center gap-2 rounded-full bg-lime px-4 py-2.5 font-display text-sm font-bold uppercase tracking-[0.12em] text-espresso shadow-tactile-btn transition-all duration-300 hover:bg-lime-hover active:translate-y-0.5 active:shadow-tactile-btn-pressed sm:px-6"
-          >
-            {primaryCta.label}
-            <ArrowUpRight className="h-4 w-4" />
-          </Link>
         </div>
       </div>
     </header>

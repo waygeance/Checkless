@@ -7,6 +7,7 @@ import {
   Trophy,
   Users
 } from "lucide-react";
+import { Button } from "./ui";
 
 const VARIANTS = [
   { label: "1 SEC", value: "1s" },
@@ -76,18 +77,16 @@ export function PlayModeGrid({
             ))}
           </div>
 
-          <button
+          <Button
             onClick={() => onStartCasual(selectedVariant)}
             disabled={!connectionReady}
-            className={`mt-6 flex w-full items-center justify-center gap-3 rounded-full px-6 py-4 font-display text-xl font-bold transition-all duration-300 ${
-              connectionReady
-                ? "bg-lime text-espresso shadow-tactile-btn hover:bg-lime-hover active:translate-y-0.5 active:shadow-tactile-btn-pressed"
-                : "cursor-not-allowed bg-cream/[0.12] text-cream-muted"
-            }`}
+            size="large"
+            className="mt-6 w-full"
+            icon={ChevronRight}
+            iconPosition="right"
           >
             Play Now
-            <ChevronRight className="h-5 w-5" />
-          </button>
+          </Button>
         </section>
 
         {/* Ranked + Friends */}
@@ -121,24 +120,22 @@ export function PlayModeGrid({
               Private rooms are staged next. You can still preview the controls.
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <button
+              <Button
                 onClick={() => onFriendAction("create")}
-                className="rounded-[1.2rem] border border-lime/25 bg-espresso/65 px-4 py-4 text-sm font-semibold uppercase tracking-[0.16em] text-lime transition-colors hover:border-lime/60 hover:bg-lime/10"
+                variant="outline"
+                icon={Plus}
+                className="w-full"
               >
-                <span className="flex items-center justify-center gap-2">
-                  <Plus size={16} />
-                  Create
-                </span>
-              </button>
-              <button
+                Create
+              </Button>
+              <Button
                 onClick={() => onFriendAction("join")}
-                className="rounded-[1.2rem] border border-lime/25 bg-espresso/65 px-4 py-4 text-sm font-semibold uppercase tracking-[0.16em] text-lime transition-colors hover:border-lime/60 hover:bg-lime/10"
+                variant="outline"
+                icon={Radio}
+                className="w-full"
               >
-                <span className="flex items-center justify-center gap-2">
-                  <Radio size={16} />
-                  Join
-                </span>
-              </button>
+                Join
+              </Button>
             </div>
           </section>
         </div>

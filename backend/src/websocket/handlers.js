@@ -6,7 +6,12 @@
  */
 
 const { SimultaneousChess } = require("../engine/chess");
-const { normalizeMoveInput } = require("../utils/validate");
+const {
+  makeMovePayloadSchema,
+  findGamePayloadSchema,
+  abortMatchPayloadSchema,
+  validateSocketPayload
+} = require("../validators/move");
 
 const TICK_INTERVAL = 100;
 const VARIANT_TIMES = { "1s": 1000, "3s": 3000, "5s": 5000 };
@@ -117,7 +122,10 @@ function registerHandlers(io, socket) {
   });
 
   // Matchmaking
-  socket.on("find_game", ({ variant }) => {
+  socket.on("find_game", (payload) => {
+    const parsed = validateSocketPayload(findGamePayloadSchema, payload);
+    if (parsed.error) return;
+    const { variant } = parsed.data;
     if (!VARIANT_TIMES[variant]) return;
     if (findGameBySocketId(socket.id)) return;
 
@@ -153,7 +161,10 @@ function registerHandlers(io, socket) {
   });
 
   // Abort match
-  socket.on("abort_match", ({ gameId } = {}) => {
+  socket.on("abort_match", (payload) => {
+    const parsed = validateSocketPayload(abortMatchPayloadSchema, payload);
+    if (parsed.error) return;
+    const { gameId } = parsed.data;
     const waitingPlayer = removeWaitingPlayer(socket.id);
 
     if (waitingPlayer) {
@@ -198,7 +209,12 @@ function registerHandlers(io, socket) {
   });
 
   // Make move
-  socket.on("make_move", ({ gameId, move }) => {
+  socket.on("make_move", (payload) => {
+    const parsed = validateSocketPayload(makeMovePayloadSchema, payload);
+    if (parsed.error) {
+      return socket.emit("move_rejected", { reason: "INVALID_PAYLOAD", message: parsed.error });
+    }
+    const { gameId, move } = parsed.data;
     const game = games.get(gameId);
     if (!game || game.status !== "active") return;
 
@@ -220,17 +236,9 @@ function registerHandlers(io, socket) {
       });
     }
 
-    const normalizedMove = normalizeMoveInput(move);
-
-    if (!normalizedMove) {
-      return socket.emit("move_rejected", {
-        reason: "INVALID_MOVE",
-        message: "Malformed move payload"
-      });
-    }
-
+    // move.from/to are already validated squares by Zod; pass directly to engine
     const engineColor = playerColor === "white" ? "w" : "b";
-    const result = game.chess.move(normalizedMove, engineColor);
+    const result = game.chess.move(move, engineColor);
 
     if (!result.valid) {
       return socket.emit("move_rejected", {

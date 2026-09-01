@@ -1,27 +1,13 @@
-const { createClerkClient } = require("@clerk/express");
-
-function getClerkConfig() {
-  const publishableKey =
-    process.env.CLERK_PUBLISHABLE_KEY ||
-    process.env.VITE_CLERK_PUBLISHABLE_KEY;
-  const secretKey = process.env.CLERK_SECRET_KEY;
-
-  if (!publishableKey || !secretKey) {
-    throw new Error(
-      "Clerk is not configured. Set CLERK_PUBLISHABLE_KEY (or VITE_CLERK_PUBLISHABLE_KEY) and CLERK_SECRET_KEY."
-    );
-  }
-
-  return { publishableKey, secretKey };
-}
-
-function createAppClerkClient() {
-  return createClerkClient(getClerkConfig());
-}
+/**
+ * services/user.js
+ *
+ * User sync and profile logic.
+ * Responsible for mapping Clerk identity → Prisma User row.
+ * Called by the socket auth middleware and any future REST auth guard.
+ */
 
 function getClerkUsername(clerkUser) {
   if (clerkUser.username?.trim()) return clerkUser.username.trim();
-
   return `player-${clerkUser.id.slice(-8).toLowerCase()}`;
 }
 
@@ -31,6 +17,15 @@ function getDisplayName(clerkUser) {
   return null;
 }
 
+/**
+ * Upserts the authenticated Clerk user into our Prisma User table.
+ * Also disables self-deletion on Clerk so we don't lose game history.
+ *
+ * @param {import("@prisma/client").PrismaClient} prisma
+ * @param {object} clerkClient
+ * @param {string} clerkUserId
+ * @returns {Promise<import("@prisma/client").User>}
+ */
 async function syncClerkUser(prisma, clerkClient, clerkUserId) {
   let clerkUser = await clerkClient.users.getUser(clerkUserId);
 
@@ -53,16 +48,9 @@ async function syncClerkUser(prisma, clerkClient, clerkUserId) {
 
   return prisma.user.upsert({
     where: { clerkUserId },
-    create: {
-      clerkUserId,
-      ...profile
-    },
+    create: { clerkUserId, ...profile },
     update: profile
   });
 }
 
-module.exports = {
-  createAppClerkClient,
-  getClerkConfig,
-  syncClerkUser
-};
+module.exports = { syncClerkUser };

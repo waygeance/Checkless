@@ -15,10 +15,9 @@ import { io } from "socket.io-client";
 import { ChessBoard } from "./ChessBoard";
 import { clearConfetti, initConfetti } from "./confetti";
 import { PlayModeGrid } from "./PlayModeGrid";
-import { SiteFooter } from "./SiteFooter";
-import { SiteHeader } from "./SiteHeader";
 import { Timer } from "./Timer";
 import { VictoryScreen } from "./VictoryScreen";
+import { Button } from "./ui";
 
 const VARIANT_TIMES = {
   "1s": 1000,
@@ -613,9 +612,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
         />
       )}
 
-      <SiteHeader active="play" roomId={gameState?.gameId} />
-
-      <main className="px-4 pb-16 pt-32 sm:px-6">
+      <main className="pb-8">
         <div className="mx-auto max-w-[1400px]">
           {connectionStatus === "connecting" && (
             <div className="flex min-h-[65vh] items-center justify-center">
@@ -653,12 +650,9 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
                   <p className="text-base leading-relaxed text-cream-muted">
                     The client is no longer connected to the game server.
                   </p>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="rounded-full bg-lime px-6 py-3.5 font-display text-lg font-bold text-espresso shadow-tactile-btn transition-all duration-300 hover:bg-lime-hover active:translate-y-0.5 active:shadow-tactile-btn-pressed"
-                  >
+                  <Button onClick={() => window.location.reload()} size="large">
                     Reconnect
-                  </button>
+                  </Button>
                 </div>
               </SurfaceCard>
             </div>
@@ -786,12 +780,13 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
                     </div>
                   </div>
 
-                  <button
+                  <Button
                     onClick={handleAbortMatch}
-                    className="rounded-full border border-danger/50 px-6 py-3.5 font-display text-lg font-bold text-danger transition-all duration-300 hover:bg-danger hover:text-white"
+                    variant="danger"
+                    size="large"
                   >
                     Abort Match
-                  </button>
+                  </Button>
                 </div>
               </SurfaceCard>
             </div>
@@ -932,23 +927,24 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
                   <SurfaceCard title="Actions" eyebrow="Match Control">
                     <div className="space-y-3">
                       {connectionStatus === "playing" && (
-                        <button
+                        <Button
                           onClick={handleAbortMatch}
-                          className="flex w-full items-center justify-center gap-2 rounded-full border border-danger/55 px-5 py-3.5 font-display text-lg font-bold text-danger transition-all duration-300 hover:bg-danger hover:text-white"
+                          variant="danger"
+                          className="w-full"
+                          icon={Flag}
                         >
-                          <Flag className="h-4 w-4" />
                           Abort Match
-                        </button>
+                        </Button>
                       )}
 
                       {connectionStatus === "game_over" && (
-                        <button
+                        <Button
                           onClick={handleReturnToLobby}
-                          className="flex w-full items-center justify-center gap-2 rounded-full bg-lime px-5 py-3.5 font-display text-lg font-bold text-espresso shadow-tactile-btn transition-all duration-300 hover:bg-lime-hover active:translate-y-0.5 active:shadow-tactile-btn-pressed"
+                          className="w-full"
+                          icon={Swords}
                         >
-                          <Swords className="h-4 w-4" />
                           Back To Lobby
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </SurfaceCard>
@@ -977,8 +973,6 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
           )}
         </div>
       </main>
-
-      <SiteFooter />
     </div>
   );
 }

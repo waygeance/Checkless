@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Show,
-  SignInButton,
-  SignUpButton,
-  UserButton
-} from "@clerk/react";
+import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 
@@ -80,9 +75,7 @@ export function SiteHeader({ active = "home", roomId }) {
                 key={link.label}
                 to={link.href}
                 className={`text-sm font-medium uppercase tracking-[0.18em] transition-colors ${
-                  isActive
-                    ? "text-lime"
-                    : "text-cream-muted hover:text-cream"
+                  isActive ? "text-lime" : "text-cream-muted hover:text-cream"
                 }`}
               >
                 {link.label}

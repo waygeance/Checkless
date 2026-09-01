@@ -12,8 +12,7 @@ export const FAVICON_PATH = "/checkless-mark.svg";
 export const THEME_COLOR = "#2c211f";
 
 export function getSiteUrl() {
-  const configured =
-    import.meta.env.VITE_SITE_URL || DEFAULT_SITE_URL;
+  const configured = import.meta.env.VITE_SITE_URL || DEFAULT_SITE_URL;
 
   const withProtocol = configured.startsWith("http")
     ? configured

@@ -242,46 +242,39 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
         );
       }, 2500);
 
-      newSocket.emit(
-        "latency_ping",
-        { clientAt: Date.now() },
-        (_response) => {
-          if (!latencyProbeInFlightRef.current) return;
+      newSocket.emit("latency_ping", { clientAt: Date.now() }, (_response) => {
+        if (!latencyProbeInFlightRef.current) return;
 
-          latencyProbeInFlightRef.current = false;
-          clearLatencyProbeTimeout();
+        latencyProbeInFlightRef.current = false;
+        clearLatencyProbeTimeout();
 
-          const roundTrip = Math.max(
-            0,
-            Math.round(performance.now() - startedAt)
+        const roundTrip = Math.max(
+          0,
+          Math.round(performance.now() - startedAt)
+        );
+        const nextSamples = [...latencySamplesRef.current.slice(-5), roundTrip];
+        const averageLatency = Math.round(
+          nextSamples.reduce((sum, sample) => sum + sample, 0) /
+            nextSamples.length
+        );
+
+        latencySamplesRef.current = nextSamples;
+        setPingMs(averageLatency);
+
+        const transport = getActiveTransport();
+
+        if (roundTrip >= 180 || averageLatency >= 180) {
+          console.warn(
+            `[realtime] high latency ${roundTrip}ms rtt (${averageLatency}ms avg) via ${transport}`
           );
-          const nextSamples = [
-            ...latencySamplesRef.current.slice(-5),
-            roundTrip
-          ];
-          const averageLatency = Math.round(
-            nextSamples.reduce((sum, sample) => sum + sample, 0) /
-              nextSamples.length
-          );
-
-          latencySamplesRef.current = nextSamples;
-          setPingMs(averageLatency);
-
-          const transport = getActiveTransport();
-
-          if (roundTrip >= 180 || averageLatency >= 180) {
-            console.warn(
-              `[realtime] high latency ${roundTrip}ms rtt (${averageLatency}ms avg) via ${transport}`
-            );
-            lastLatencyLogAtRef.current = Date.now();
-            return;
-          }
-
-          logLatency(
-            `latency ${roundTrip}ms rtt (${averageLatency}ms avg) via ${transport}`
-          );
+          lastLatencyLogAtRef.current = Date.now();
+          return;
         }
-      );
+
+        logLatency(
+          `latency ${roundTrip}ms rtt (${averageLatency}ms avg) via ${transport}`
+        );
+      });
     };
 
     const attachEngineListeners = () => {
@@ -835,8 +828,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
                       </span>
                     </div>
                     <div className="rounded-full border border-white/10 bg-espresso/80 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-cream-muted">
-                      Room{" "}
-                      <span className="text-lime">{gameState.gameId}</span>
+                      Room <span className="text-lime">{gameState.gameId}</span>
                     </div>
                     <div className="rounded-full border border-white/10 bg-espresso/80 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-cream-muted">
                       Variant{" "}
@@ -969,9 +961,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
             <div className="pointer-events-none fixed left-4 right-4 top-24 z-40 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-md sm:-translate-x-1/2">
               <div className="flex items-start gap-3 rounded-[1.4rem] border border-white/10 bg-mocha px-4 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
                 <AlertCircle className="mt-0.5 h-5 w-5 text-lime" />
-                <p className="text-sm leading-relaxed text-cream">
-                  {message}
-                </p>
+                <p className="text-sm leading-relaxed text-cream">{message}</p>
               </div>
             </div>
           )}

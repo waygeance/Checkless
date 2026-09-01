@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Crown } from "lucide-react";
 
-
-
 // ── Helpers ─────────────────────────────────────────
 
 const algebraicToIndices = (sq) => {

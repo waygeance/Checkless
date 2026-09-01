@@ -59,14 +59,12 @@ const ruleCards = [
   {
     icon: Clock3,
     title: "Tempo Wins",
-    description:
-      "When your timer hits zero, you move. Fast reads matter more."
+    description: "When your timer hits zero, you move. Fast reads matter more."
   },
   {
     icon: Shield,
     title: "King Capture",
-    description:
-      "No checkmate sequence. If the king falls, the game is over."
+    description: "No checkmate sequence. If the king falls, the game is over."
   }
 ];
 
@@ -100,9 +98,7 @@ export default function Home() {
     const desktopQuery = window.matchMedia(HERO_VIDEO_DESKTOP_QUERY);
 
     const syncHeroVideoPreference = () => {
-      setHeroVideoEnabled(
-        desktopQuery.matches && !reducedMotionQuery.matches
-      );
+      setHeroVideoEnabled(desktopQuery.matches && !reducedMotionQuery.matches);
     };
 
     syncHeroVideoPreference();
@@ -212,9 +208,9 @@ export default function Home() {
                 className="mx-auto mt-7 max-w-3xl text-lg leading-relaxed text-cream-muted sm:text-xl"
               >
                 Simultaneous chess where both players recharge independently,
-                move under pressure, and finish games by capturing the king.
-                The designer’s espresso-and-lime identity now drives every page
-                of the experience.
+                move under pressure, and finish games by capturing the king. The
+                designer’s espresso-and-lime identity now drives every page of
+                the experience.
               </motion.p>
 
               <motion.div

@@ -15,7 +15,6 @@ export default function Auth({ mode }) {
 
       <main className="flex min-h-screen items-center justify-center px-4 pb-16 pt-28 sm:px-6">
         <section className="grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-mocha shadow-tactile lg:grid-cols-[0.9fr_1.1fr]">
-
           {/* ── Left panel (desktop only) ───────────────────── */}
           <div className="relative hidden overflow-hidden bg-tactile-gradient p-10 lg:flex lg:flex-col lg:justify-between">
             {/* Lime glow accent */}
@@ -56,7 +55,6 @@ export default function Auth({ mode }) {
             </div>
           </div>
 
-
           {/* ── Right panel — Clerk form ─────────────────────── */}
           <div className="flex min-h-[620px] items-center justify-center bg-espresso/60 p-6 sm:p-10">
             <AuthComponent
@@ -67,7 +65,6 @@ export default function Auth({ mode }) {
               forceRedirectUrl={redirectTo}
             />
           </div>
-
         </section>
       </main>
     </div>

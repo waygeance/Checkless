@@ -1,8 +1,18 @@
 import { Crown, Swords } from "lucide-react";
 
 const PIECE_SYMBOLS = {
-  p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚",
-  P: "♟", R: "♜", N: "♞", B: "♝", Q: "♛", K: "♚"
+  p: "♟",
+  r: "♜",
+  n: "♞",
+  b: "♝",
+  q: "♛",
+  k: "♚",
+  P: "♟",
+  R: "♜",
+  N: "♞",
+  B: "♝",
+  Q: "♛",
+  K: "♚"
 };
 
 export function VictoryScreen({
@@ -54,8 +64,7 @@ export function VictoryScreen({
             </div>
 
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-cream-muted">
-              {capturedBy.toUpperCase()} captured{" "}
-              {capturedPiece.toUpperCase()}
+              {capturedBy.toUpperCase()} captured {capturedPiece.toUpperCase()}
             </p>
           </div>
 

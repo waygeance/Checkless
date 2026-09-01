@@ -118,8 +118,7 @@ export function PlayModeGrid({
               Friend Rooms
             </div>
             <p className="text-sm leading-relaxed text-cream-muted">
-              Private rooms are staged next. You can still preview the
-              controls.
+              Private rooms are staged next. You can still preview the controls.
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <button

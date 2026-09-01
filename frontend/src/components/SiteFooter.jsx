@@ -35,8 +35,8 @@ export function SiteFooter() {
               </div>
             </div>
             <p className="text-sm leading-relaxed text-cream-muted/[0.85]">
-              A tactile espresso interface for simultaneous chess: no turns,
-              no waiting, just fast king-hunt pressure.
+              A tactile espresso interface for simultaneous chess: no turns, no
+              waiting, just fast king-hunt pressure.
             </p>
           </div>
 
@@ -89,8 +89,8 @@ export function SiteFooter() {
 
         <div className="mt-14 flex flex-col gap-3 border-t border-white/5 pt-6 text-sm text-cream-muted/70 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {new Date().getFullYear()} Checkless. Built for sharp moves
-            and responsive play.
+            © {new Date().getFullYear()} Checkless. Built for sharp moves and
+            responsive play.
           </p>
           <p className="font-mono text-xs uppercase tracking-[0.18em]">
             React + Express + Prisma

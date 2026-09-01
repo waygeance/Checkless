@@ -11,7 +11,7 @@ function parseHSL(hslStr) {
   return {
     h: parseFloat(match[1]),
     s: parseFloat(match[2]),
-    l: parseFloat(match[3]),
+    l: parseFloat(match[3])
   };
 }
 
@@ -37,7 +37,7 @@ const GRADIENT_POSITIONS = [
   "41% 38%",
   "86% 85%",
   "82% 18%",
-  "51% 4%",
+  "51% 4%"
 ];
 
 const GRADIENT_KEYS = [
@@ -47,7 +47,7 @@ const GRADIENT_KEYS = [
   "--gradient-four",
   "--gradient-five",
   "--gradient-six",
-  "--gradient-seven",
+  "--gradient-seven"
 ];
 
 const COLOR_MAP = [0, 1, 2, 0, 1, 2, 1];
@@ -81,7 +81,7 @@ function animateValue({
   delay = 0,
   ease = easeOutCubic,
   onUpdate,
-  onEnd,
+  onEnd
 }) {
   const timeoutId = window.setTimeout(() => {
     const startedAt = performance.now();
@@ -120,7 +120,7 @@ const BorderGlow = ({
   coneSpread = 25,
   animated = false,
   colors = ["#c084fc", "#f472b6", "#38bdf8"],
-  fillOpacity = 0.5,
+  fillOpacity = 0.5
 }) => {
   const cardRef = useRef(null);
 
@@ -147,7 +147,7 @@ const BorderGlow = ({
 
       return Math.min(Math.max(1 / Math.min(ratioX, ratioY), 0), 1);
     },
-    [getCenterOfElement],
+    [getCenterOfElement]
   );
 
   const getCursorAngle = useCallback(
@@ -169,7 +169,7 @@ const BorderGlow = ({
 
       return degrees;
     },
-    [getCenterOfElement],
+    [getCenterOfElement]
   );
 
   const handlePointerMove = useCallback(
@@ -189,7 +189,7 @@ const BorderGlow = ({
       card.style.setProperty("--edge-proximity", `${(edge * 100).toFixed(3)}`);
       card.style.setProperty("--cursor-angle", `${angle.toFixed(3)}deg`);
     },
-    [getCursorAngle, getEdgeProximity],
+    [getCursorAngle, getEdgeProximity]
   );
 
   useEffect(() => {
@@ -208,7 +208,7 @@ const BorderGlow = ({
       duration: 500,
       onUpdate: (value) => {
         card.style.setProperty("--edge-proximity", `${value}`);
-      },
+      }
     });
 
     const stopAngleEaseIn = animateValue({
@@ -218,9 +218,9 @@ const BorderGlow = ({
       onUpdate: (value) => {
         card.style.setProperty(
           "--cursor-angle",
-          `${(angleEnd - angleStart) * (value / 100) + angleStart}deg`,
+          `${(angleEnd - angleStart) * (value / 100) + angleStart}deg`
         );
-      },
+      }
     });
 
     const stopAngleEaseOut = animateValue({
@@ -232,9 +232,9 @@ const BorderGlow = ({
       onUpdate: (value) => {
         card.style.setProperty(
           "--cursor-angle",
-          `${(angleEnd - angleStart) * (value / 100) + angleStart}deg`,
+          `${(angleEnd - angleStart) * (value / 100) + angleStart}deg`
         );
-      },
+      }
     });
 
     const stopEdgeOutro = animateValue({
@@ -248,7 +248,7 @@ const BorderGlow = ({
       },
       onEnd: () => {
         card.classList.remove("sweep-active");
-      },
+      }
     });
 
     return () => {
@@ -275,7 +275,7 @@ const BorderGlow = ({
         "--cone-spread": coneSpread,
         "--fill-opacity": fillOpacity,
         ...glowVars,
-        ...buildGradientVars(colors),
+        ...buildGradientVars(colors)
       }}
     >
       <span className="edge-light" />

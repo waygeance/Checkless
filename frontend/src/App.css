@@ -23,6 +23,22 @@
   --lime-hover: #d4ff33;
   --lime-muted: rgba(200, 255, 0, 0.15);
   --danger: #ff6b5f;
+
+  /* Clerk v6 CSS custom properties — forces these to cascade to all cl-* elements */
+  --clerk-color-primary:          #c8ff00;
+  --clerk-color-background:       #241a16;
+  --clerk-color-text:             #f0eadc;
+  --clerk-color-text-secondary:   #d8d0c0;
+  --clerk-color-input:            #1c1410;
+  --clerk-color-input-foreground: #f0eadc;
+  --clerk-color-input-foreground-secondary: #d8d0c0;
+  --clerk-color-danger:           #ff6b5f;
+  --clerk-color-success:          #4ade80;
+  --clerk-color-neutral:          #d8d0c0;
+  --clerk-color-modal-backdrop:   rgba(0, 0, 0, 0.72);
+  --clerk-font-family:            'Segoe UI', 'Helvetica Neue', Arial, ui-sans-serif, system-ui, sans-serif;
+  --clerk-border-radius:          0.875rem;
+  --clerk-font-size-sm:           0.8125rem;
 }
 
 /* ── Base Styles ────────────────────────────────────── */
@@ -246,15 +262,260 @@ body {
 }
 
 /* Explicit Piece Image Paths */
-.cg-wrap piece.pawn.white { background-image: url('/pieces/cburnett/wP.svg') !important; }
-.cg-wrap piece.bishop.white { background-image: url('/pieces/cburnett/wB.svg') !important; }
-.cg-wrap piece.knight.white { background-image: url('/pieces/cburnett/wN.svg') !important; }
-.cg-wrap piece.rook.white { background-image: url('/pieces/cburnett/wR.svg') !important; }
-.cg-wrap piece.queen.white { background-image: url('/pieces/cburnett/wQ.svg') !important; }
-.cg-wrap piece.king.white { background-image: url('/pieces/cburnett/wK.svg') !important; }
-.cg-wrap piece.pawn.black { background-image: url('/pieces/cburnett/bP.svg') !important; }
-.cg-wrap piece.bishop.black { background-image: url('/pieces/cburnett/bB.svg') !important; }
-.cg-wrap piece.knight.black { background-image: url('/pieces/cburnett/bN.svg') !important; }
-.cg-wrap piece.rook.black { background-image: url('/pieces/cburnett/bR.svg') !important; }
-.cg-wrap piece.queen.black { background-image: url('/pieces/cburnett/bQ.svg') !important; }
-.cg-wrap piece.king.black { background-image: url('/pieces/cburnett/bK.svg') !important; }
+.cg-wrap piece.pawn.white {
+  background-image: url("/pieces/cburnett/wP.svg") !important;
+}
+.cg-wrap piece.bishop.white {
+  background-image: url("/pieces/cburnett/wB.svg") !important;
+}
+.cg-wrap piece.knight.white {
+  background-image: url("/pieces/cburnett/wN.svg") !important;
+}
+.cg-wrap piece.rook.white {
+  background-image: url("/pieces/cburnett/wR.svg") !important;
+}
+.cg-wrap piece.queen.white {
+  background-image: url("/pieces/cburnett/wQ.svg") !important;
+}
+.cg-wrap piece.king.white {
+  background-image: url("/pieces/cburnett/wK.svg") !important;
+}
+.cg-wrap piece.pawn.black {
+  background-image: url("/pieces/cburnett/bP.svg") !important;
+}
+.cg-wrap piece.bishop.black {
+  background-image: url("/pieces/cburnett/bB.svg") !important;
+}
+.cg-wrap piece.knight.black {
+  background-image: url("/pieces/cburnett/bN.svg") !important;
+}
+.cg-wrap piece.rook.black {
+  background-image: url("/pieces/cburnett/bR.svg") !important;
+}
+.cg-wrap piece.queen.black {
+  background-image: url("/pieces/cburnett/bQ.svg") !important;
+}
+.cg-wrap piece.king.black {
+  background-image: url("/pieces/cburnett/bK.svg") !important;
+}
+
+/* ── Clerk UI Overrides ─────────────────────────────── */
+/*
+ * Clerk v6's appearance.variables API injects --clerk-color-* props but
+ * they don't cascade into inputs/cards in the DOM we observed.
+ * Strategy: (a) re-declare the vars in @layer base so they beat Clerk's
+ * sheet, (b) use direct cl-* selectors with !important as a hard fallback.
+ */
+
+/* 1. Clerk CSS custom properties — merged into :root above — see design tokens section */
+
+/* 2. Card & modal surface */
+.cl-card {
+  background-color: #241a16 !important;
+  color: #f0eadc !important;
+}
+
+.cl-cardBox {
+  background-color: #241a16 !important;
+}
+
+.cl-modalContent {
+  background-color: #241a16 !important;
+  border-radius: 1.25rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    0 0 0 1px rgba(200, 255, 0, 0.06),
+    0 24px 64px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* 3. Text hierarchy */
+.cl-headerTitle,
+.cl-headerSubtitle,
+.cl-formFieldLabel,
+.cl-identityPreviewText,
+.cl-userPreviewMainIdentifier,
+.cl-userPreviewSecondaryIdentifier {
+  color: #f0eadc !important;
+}
+
+.cl-headerSubtitle,
+.cl-formFieldLabel,
+.cl-userPreviewSecondaryIdentifier {
+  color: #d8d0c0 !important;
+}
+
+/* 4. Input fields — the main culprit (white bg fix) */
+.cl-formFieldInput,
+.cl-input {
+  background-color: #1c1410 !important;
+  color: #f0eadc !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 0.875rem !important;
+  outline: none !important;
+}
+
+.cl-formFieldInput::placeholder,
+.cl-input::placeholder {
+  color: rgba(216, 208, 192, 0.45) !important;
+}
+
+.cl-formFieldInput:focus,
+.cl-input:focus {
+  border-color: rgba(200, 255, 0, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(200, 255, 0, 0.18) !important;
+}
+
+/* 5. Primary action button */
+.cl-formButtonPrimary,
+.cl-button[data-variant="solid"] {
+  background-color: #c8ff00 !important;
+  color: #1a1400 !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 16px rgba(200, 255, 0, 0.15) !important;
+  transition: background-color 0.15s ease, transform 0.1s ease !important;
+}
+
+.cl-formButtonPrimary:hover,
+.cl-button[data-variant="solid"]:hover {
+  background-color: #d4ff33 !important;
+}
+
+.cl-formButtonPrimary:active,
+.cl-button[data-variant="solid"]:active {
+  transform: translateY(1px) !important;
+}
+
+/* 6. Footer / sign-in / sign-up links */
+.cl-footerActionLink,
+.cl-footerActionText a {
+  color: #c8ff00 !important;
+  font-weight: 600 !important;
+}
+
+.cl-footerActionLink:hover {
+  color: #d4ff33 !important;
+}
+
+/* 7. Divider */
+.cl-dividerLine {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.cl-dividerText {
+  color: rgba(216, 208, 192, 0.55) !important;
+  font-size: 0.7rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.12em !important;
+}
+
+/* 8. Social buttons (Google, etc.) */
+.cl-socialButtonsBlockButton {
+  background-color: #382b27 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f0eadc !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.cl-socialButtonsBlockButton:hover {
+  background-color: #4a3933 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.cl-socialButtonsBlockButtonText {
+  color: #f0eadc !important;
+  font-weight: 500 !important;
+}
+
+/* 9. UserButton popup menu */
+.cl-userButtonPopoverCard {
+  background-color: #241a16 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55) !important;
+  color: #f0eadc !important;
+}
+
+.cl-userButtonPopoverActionButton {
+  color: #d8d0c0 !important;
+}
+
+.cl-userButtonPopoverActionButton:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: #f0eadc !important;
+}
+
+.cl-userButtonPopoverActionButtonText {
+  color: inherit !important;
+}
+
+.cl-userButtonPopoverFooter {
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 10. UserProfile modal */
+.cl-profileSection__profile,
+.cl-profileSectionTitle,
+.cl-profileSectionTitleText {
+  color: #f0eadc !important;
+}
+
+.cl-navbarButton {
+  color: #d8d0c0 !important;
+}
+
+.cl-navbarButton:hover,
+.cl-navbarButton[data-active="true"],
+.cl-navbarButton.cl-active {
+  background-color: rgba(200, 255, 0, 0.1) !important;
+  color: #c8ff00 !important;
+}
+
+.cl-profileSectionContent {
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 11. Badges & tags */
+.cl-badge {
+  background-color: rgba(200, 255, 0, 0.12) !important;
+  color: #c8ff00 !important;
+  border: 1px solid rgba(200, 255, 0, 0.2) !important;
+}
+
+/* 12. Verification / OTP inputs */
+.cl-otpCodeFieldInput {
+  background-color: #1c1410 !important;
+  color: #f0eadc !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 0.625rem !important;
+}
+
+.cl-otpCodeFieldInput:focus {
+  border-color: rgba(200, 255, 0, 0.6) !important;
+  box-shadow: 0 0 0 2px rgba(200, 255, 0, 0.18) !important;
+}
+
+/* 13. Alert / error messages */
+.cl-alert {
+  background-color: rgba(255, 107, 95, 0.12) !important;
+  border: 1px solid rgba(255, 107, 95, 0.25) !important;
+  color: #ff6b5f !important;
+  border-radius: 0.75rem !important;
+}
+
+.cl-alertText {
+  color: #ff6b5f !important;
+}
+
+/* 14. Identifiers (email chip in UserProfile) */
+.cl-identityPreviewEditButton {
+  color: #c8ff00 !important;
+}
+
+/* 15. Development mode banner — subtle, not jarring */
+.cl-developmentModeNotice,
+[class*="developmentMode"] {
+  border-top: 1px solid rgba(200, 255, 0, 0.15) !important;
+  color: rgba(200, 255, 0, 0.7) !important;
+  background-color: transparent !important;
+  font-size: 0.7rem !important;
+}

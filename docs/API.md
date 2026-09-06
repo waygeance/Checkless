@@ -59,6 +59,13 @@ Authenticated users can use `/api/challenges`:
 - `POST /:code/accept` atomically claims the opponent seat.
 - `DELETE /:id` cancels an open challenge owned by the caller.
 
+## Admin HTTP endpoints
+
+All `/api/admin` endpoints require a verified local `ADMIN` role:
+`GET /users?q=`, `GET /games?q=`, `POST /users/:userId/suspend`, and
+`POST /users/:userId/restore`. Suspend and restore requests require a
+non-empty `reason`; every mutation appends an `AdminAuditLog` row.
+
 ### `find_game`
 
 Requests to join the matchmaking queue.

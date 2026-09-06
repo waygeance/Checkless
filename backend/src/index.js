@@ -39,6 +39,7 @@ const { createRequireAuth } = require("./middlewares/rest-auth");
 const { SocialService } = require("./services/social");
 const { PresenceService } = require("./services/presence");
 const { ChallengeService } = require("./services/challenge");
+const { AdminService } = require("./services/admin");
 
 // ── Core Instances ───────────────────────────────────
 
@@ -57,6 +58,7 @@ const publicGameService = new PublicGameService(prisma);
 const socialService = new SocialService(prisma);
 const presenceService = new PresenceService(prisma);
 const challengeService = new ChallengeService(prisma);
+const adminService = new AdminService(prisma);
 
 const PORT = Number(process.env.PORT) || 8081;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -108,6 +110,15 @@ app.use("/api/guest", createGuestRouter(prisma));
 app.use(
   "/api",
   require("./routes/public").createPublicRouter(publicGameService)
+);
+app.use(
+  "/api/admin",
+  require("./routes/admin").createAdminRouter(
+    adminService,
+    createRequireAuth({ prisma, clerkClient, authorizedParties }),
+    io,
+    presenceService
+  )
 );
 app.use(
   "/api/challenges",

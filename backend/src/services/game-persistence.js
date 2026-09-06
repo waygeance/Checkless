@@ -149,6 +149,11 @@ class GamePersistenceService {
         );
       }
 
+      const finalizedGame = await transaction.game.findUnique({
+        where: { id: gameId },
+        include: { participants: true }
+      });
+
       if (winnerColor) {
         await transaction.gameParticipant.updateMany({
           where: { gameId, color: winnerColor },
@@ -160,7 +165,37 @@ class GamePersistenceService {
         });
       }
 
-      return transaction.game.findUnique({ where: { id: gameId } });
+      // Statistics are updated in the same transaction and only after the
+      // ACTIVE -> terminal transition succeeds, making finalization idempotent.
+      for (const participant of finalizedGame.participants) {
+        if (!participant.userId) continue;
+        const isWinner = winnerColor && participant.color === winnerColor;
+        const isLoser = winnerColor && participant.color !== winnerColor;
+        await transaction.playerVariantStats.upsert({
+          where: {
+            userId_variant: {
+              userId: participant.userId,
+              variant: finalizedGame.variant
+            }
+          },
+          create: {
+            userId: participant.userId,
+            variant: finalizedGame.variant,
+            totalWins: isWinner ? 1 : 0,
+            totalLosses: isLoser ? 1 : 0,
+            totalNoResults: winnerColor ? 0 : 1,
+            lastPlayedAt: finalizedGame.endedAt
+          },
+          update: {
+            totalWins: isWinner ? { increment: 1 } : undefined,
+            totalLosses: isLoser ? { increment: 1 } : undefined,
+            totalNoResults: winnerColor ? undefined : { increment: 1 },
+            lastPlayedAt: finalizedGame.endedAt
+          }
+        });
+      }
+
+      return finalizedGame;
     });
   }
 

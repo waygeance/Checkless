@@ -10,6 +10,7 @@ const {
   makeMovePayloadSchema,
   findGamePayloadSchema,
   abortMatchPayloadSchema,
+  gameActionPayloadSchema,
   validateSocketPayload
 } = require("../validators/move");
 
@@ -24,7 +25,26 @@ function startTimerTick(io, gameService) {
     lastTimerTickAt = now;
 
     for (const update of gameService.tick(elapsed)) {
-      io.to(update.gameId).volatile.emit("timer_update", update);
+      if (update.reconnectWarning) {
+        io.to(update.gameId).emit("opponent_disconnected", {
+          disconnectedColor: update.disconnectedColor,
+          remainingMs: update.remainingMs,
+          deadlineAt: Date.now() + update.remainingMs
+        });
+      } else if (update.reconnectExpired) {
+        io.to(update.gameId).emit("game_over", {
+          reason: "DISCONNECT_FORFEIT",
+          winner: update.winnerColor,
+          fen: gameService.getGame(update.gameId)?.chess.fen()
+        });
+        void gameService
+          .forfeitDisconnectedPlayer(update.gameId, update.winnerColor)
+          .catch((error) =>
+            console.error("Could not finalize disconnect forfeit", error)
+          );
+      } else {
+        io.to(update.gameId).volatile.emit("timer_update", update);
+      }
     }
   }, TICK_INTERVAL_MS);
 
@@ -191,6 +211,50 @@ function registerHandlers(io, socket, { gameService, matchmakingService }) {
     }
   });
 
+  socket.on("resign_game", async (payload) => {
+    const parsed = validateSocketPayload(gameActionPayloadSchema, payload);
+    if (parsed.error)
+      return socket.emit("move_rejected", {
+        reason: "INVALID_PAYLOAD",
+        message: parsed.error
+      });
+    const result = await gameService.resignGame(parsed.data.gameId, socket.id);
+    if (!result)
+      return socket.emit("move_rejected", {
+        reason: "GAME_NOT_ACTIVE",
+        message: "The game is not active"
+      });
+    io.to(parsed.data.gameId).emit("game_over", {
+      reason: "RESIGNATION",
+      winner: result.winnerColor,
+      fen: result.game.chess.fen()
+    });
+  });
+
+  socket.on("reconnect_game", (payload) => {
+    const parsed = validateSocketPayload(gameActionPayloadSchema, payload);
+    if (parsed.error) return;
+    const result = gameService.reclaimGame({
+      gameId: parsed.data.gameId,
+      socketId: socket.id,
+      userId: socket.data.user.id
+    });
+    if (!result.ok)
+      return socket.emit("reconnect_failed", { reason: result.reason });
+    socket.join(result.game.id);
+    socket.emit("reconnect_success", {
+      gameId: result.game.id,
+      color: result.color,
+      fen: result.fen,
+      timers: result.timers,
+      whiteCanMove: result.whiteCanMove,
+      blackCanMove: result.blackCanMove
+    });
+    socket
+      .to(result.game.id)
+      .emit("opponent_reconnected", { color: result.color });
+  });
+
   socket.on("make_move", (payload) => {
     const parsed = validateSocketPayload(makeMovePayloadSchema, payload);
     if (parsed.error) {
@@ -260,22 +324,14 @@ function registerHandlers(io, socket, { gameService, matchmakingService }) {
     const game = gameService.findGameBySocketId(socket.id);
     if (!game) return;
 
-    const winner =
-      game.players.white.socketId === socket.id ? "black" : "white";
-    const opponentSocketId = game.players[winner].socketId;
-    game.status = "finishing";
-
-    io.to(opponentSocketId).emit("game_over", {
-      reason: "opponent_disconnected",
-      winner,
-      fen: game.chess.fen()
+    const disconnectedUserId = socket.data.user?.id;
+    const marked = gameService.markDisconnected(game.id, disconnectedUserId);
+    if (!marked) return;
+    io.to(game.id).emit("opponent_disconnected", {
+      disconnectedColor: marked.color,
+      remainingMs: 10_000,
+      deadlineAt: marked.deadlineAt
     });
-
-    void gameService
-      .forfeitDisconnectedPlayer(game.id, winner)
-      .catch((error) =>
-        console.error(`Could not finalize disconnected game ${game.id}`, error)
-      );
   });
 }
 

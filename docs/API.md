@@ -16,6 +16,31 @@ Requests to join the matchmaking queue.
 Requests to cancel matchmaking or concede an active game.
 
 - **Payload**: `{ gameId?: string }`
+
+### `resign_game`
+
+Participant-only terminal action. The opponent wins immediately and the result
+is persisted as `RESIGNATION`.
+
+- **Payload**: `{ gameId: string }`
+
+### `reconnect_game`
+
+Reclaims a disconnected participant's seat during the ten-second grace
+period. The server verifies the authenticated user identity rather than
+trusting a client-supplied color.
+
+- **Payload**: `{ gameId: string }`
+- **Success**: `reconnect_success` with the current FEN, timers, and color.
+- **Failure**: `reconnect_failed` with `RECONNECT_EXPIRED` or another reason.
+
+### `opponent_disconnected`
+
+Broadcast while a participant's reconnect grace period is active. The frontend
+can render a countdown using `deadlineAt`; the game continues running during
+the countdown.
+
+- **Payload**: `{ disconnectedColor, remainingMs, deadlineAt }`
 - **Behavior**: If in queue, removes the player. If in a game, ends the game and alerts the opponent.
 
 ### `make_move`

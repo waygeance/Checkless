@@ -60,6 +60,10 @@ const abortMatchPayloadSchema = z
   .optional()
   .default({});
 
+const gameActionPayloadSchema = z.object({
+  gameId: z.string().min(1, "gameId is required")
+});
+
 /**
  * Parses and validates a socket payload against a Zod schema.
  * Returns { data } on success or { error } on failure.
@@ -85,5 +89,6 @@ module.exports = {
   makeMovePayloadSchema,
   findGamePayloadSchema,
   abortMatchPayloadSchema,
+  gameActionPayloadSchema,
   validateSocketPayload
 };

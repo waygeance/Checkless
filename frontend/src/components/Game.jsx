@@ -17,7 +17,7 @@ import { clearConfetti, initConfetti } from "./confetti";
 import { PlayModeGrid } from "./PlayModeGrid";
 import { Timer } from "./Timer";
 import { VictoryScreen } from "./VictoryScreen";
-import { Button } from "./ui";
+import { Button, OpponentDisconnectToast } from "./ui";
 
 const VARIANT_TIMES = {
   "1s": 1000,
@@ -141,6 +141,8 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
   const [victoryAnimation, setVictoryAnimation] = useState(null);
   const [premove, setPremove] = useState(null);
   const [pingMs, setPingMs] = useState(null);
+  const [disconnectNotice, setDisconnectNotice] = useState(null);
+  const activeGameIdRef = useRef(null);
   const [transportName, setTransportName] = useState("connecting");
   const latencySamplesRef = useRef([]);
   const latencyProbeInFlightRef = useRef(false);
@@ -310,6 +312,9 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
       attachEngineListeners();
       setTransportName(getActiveTransport());
       logLatency(`connected via ${getActiveTransport()}`, true);
+      if (activeGameIdRef.current) {
+        newSocket.emit("reconnect_game", { gameId: activeGameIdRef.current });
+      }
       sampleLatency();
       latencyIntervalId = window.setInterval(
         sampleLatency,
@@ -376,9 +381,37 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
         blackCanMove: false,
         boardSyncToken: 0
       });
+      activeGameIdRef.current = data.gameId;
+      setDisconnectNotice(null);
       lastResolvedMoveRef.current = null;
       setConnectionStatus("playing");
       setMessage("");
+    });
+
+    newSocket.on("opponent_disconnected", (data) => {
+      if (!data?.deadlineAt) return;
+      setDisconnectNotice(data);
+    });
+
+    newSocket.on("opponent_reconnected", () => {
+      setDisconnectNotice(null);
+    });
+
+    newSocket.on("reconnect_success", (data) => {
+      setDisconnectNotice(null);
+      setGameState((prev) =>
+        prev
+          ? {
+              ...prev,
+              fen: data.fen ?? prev.fen,
+              whiteTimer: data.timers?.white ?? prev.whiteTimer,
+              blackTimer: data.timers?.black ?? prev.blackTimer,
+              whiteCanMove: data.whiteCanMove ?? prev.whiteCanMove,
+              blackCanMove: data.blackCanMove ?? prev.blackCanMove
+            }
+          : prev
+      );
+      setConnectionStatus("playing");
     });
 
     newSocket.on("timer_update", (data) => {
@@ -444,6 +477,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
     });
 
     newSocket.on("game_over", (data) => {
+      setDisconnectNotice(null);
       clearVictorySequenceTimers();
       setPremove(null);
       setConnectionStatus("game_over");
@@ -453,9 +487,11 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
           ? `${data.winner} wins by capturing the king!`
           : data.reason === "opponent_aborted"
             ? "Opponent aborted the match."
-            : data.reason === "opponent_disconnected"
-              ? "Opponent disconnected."
-              : "Game over.";
+            : data.reason === "DISCONNECT_FORFEIT"
+              ? "Opponent did not return and you win by forfeit."
+              : data.reason === "RESIGNATION"
+                ? "Opponent resigned."
+                : "Game over.";
 
       setMessage(data.reason === "KING_CAPTURED" ? "" : resultMessage);
 
@@ -591,6 +627,8 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
     resetVictoryPresentation();
     setConnectionStatus("connected");
     setMessage("");
+    setDisconnectNotice(null);
+    activeGameIdRef.current = null;
   };
 
   const handleVictoryClose = () => {
@@ -933,14 +971,27 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
                   <SurfaceCard title="Actions" eyebrow="Match Control">
                     <div className="space-y-3">
                       {connectionStatus === "playing" && (
-                        <Button
-                          onClick={handleAbortMatch}
-                          variant="danger"
-                          className="w-full"
-                          icon={Flag}
-                        >
-                          Abort Match
-                        </Button>
+                        <div className="space-y-3">
+                          <Button
+                            onClick={() =>
+                              socket?.emit("resign_game", {
+                                gameId: gameState.gameId
+                              })
+                            }
+                            variant="danger"
+                            className="w-full"
+                            icon={Flag}
+                          >
+                            Resign Game
+                          </Button>
+                          <Button
+                            onClick={handleAbortMatch}
+                            variant="ghost"
+                            className="w-full"
+                          >
+                            Abort Match
+                          </Button>
+                        </div>
                       )}
 
                       {connectionStatus === "game_over" && (
@@ -979,6 +1030,10 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
           )}
         </div>
       </main>
+      <OpponentDisconnectToast
+        data={disconnectNotice}
+        onExpired={() => setDisconnectNotice(null)}
+      />
     </div>
   );
 }

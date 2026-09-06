@@ -5,6 +5,8 @@ const { formatCmnMove } = require("../utils/cmn");
 const { getDatabaseColor, getVariantTime } = require("../utils/game");
 const { MoveWriteBuffer } = require("./move-write-buffer");
 
+const RECONNECT_GRACE_MS = 10_000;
+
 class LiveGameService extends EventEmitter {
   constructor({
     persistence,
@@ -84,7 +86,10 @@ class LiveGameService extends EventEmitter {
       participantId: participant.id,
       timerValue: variantTime,
       canMove: false,
-      lastMoveAt: null
+      lastMoveAt: null,
+      disconnectedAt: null,
+      reconnectDeadlineAt: null,
+      lastReconnectNoticeAt: null
     };
   }
 
@@ -114,6 +119,65 @@ class LiveGameService extends EventEmitter {
     return null;
   }
 
+  markDisconnected(gameId, userId) {
+    const game = this.games.get(gameId);
+    if (!game || game.status !== "active") return null;
+    const color = ["white", "black"].find(
+      (candidate) => game.players[candidate].userId === userId
+    );
+    if (!color) return null;
+    const player = game.players[color];
+    player.socketId = null;
+    player.disconnectedAt = Date.now();
+    player.reconnectDeadlineAt = player.disconnectedAt + RECONNECT_GRACE_MS;
+    player.lastReconnectNoticeAt = 0;
+    return { game, color, deadlineAt: player.reconnectDeadlineAt };
+  }
+
+  reclaimGame({ gameId, socketId, userId }) {
+    const game = this.games.get(gameId);
+    if (!game || game.status !== "active") {
+      return this.rejection("GAME_NOT_ACTIVE", "The game is not active");
+    }
+    const color = ["white", "black"].find(
+      (candidate) => game.players[candidate].userId === userId
+    );
+    if (!color)
+      return this.rejection("NOT_A_PARTICIPANT", "You are not in this game");
+    const player = game.players[color];
+    if (player.socketId && player.socketId !== socketId) {
+      return this.rejection(
+        "SEAT_OCCUPIED",
+        "This game seat is already connected"
+      );
+    }
+    if (
+      !player.reconnectDeadlineAt ||
+      player.reconnectDeadlineAt <= Date.now()
+    ) {
+      return this.rejection(
+        "RECONNECT_EXPIRED",
+        "The reconnect window has expired"
+      );
+    }
+    player.socketId = socketId;
+    player.disconnectedAt = null;
+    player.reconnectDeadlineAt = null;
+    player.lastReconnectNoticeAt = null;
+    return {
+      ok: true,
+      game,
+      color,
+      fen: game.chess.fen(),
+      timers: {
+        white: game.players.white.timerValue,
+        black: game.players.black.timerValue
+      },
+      whiteCanMove: game.players.white.canMove,
+      blackCanMove: game.players.black.canMove
+    };
+  }
+
   getGame(gameId) {
     return this.games.get(gameId) || null;
   }
@@ -139,6 +203,33 @@ class LiveGameService extends EventEmitter {
         whiteCanMove: game.players.white.canMove,
         blackCanMove: game.players.black.canMove
       });
+
+      for (const color of ["white", "black"]) {
+        const player = game.players[color];
+        if (!player.reconnectDeadlineAt) continue;
+        const remainingMs = Math.max(
+          0,
+          player.reconnectDeadlineAt - Date.now()
+        );
+        if (remainingMs === 0) {
+          player.reconnectDeadlineAt = null;
+          game.status = "finishing";
+          updates.push({
+            gameId: game.id,
+            reconnectExpired: true,
+            disconnectedColor: color,
+            winnerColor: color === "white" ? "black" : "white"
+          });
+        } else if (Date.now() - player.lastReconnectNoticeAt >= 1000) {
+          player.lastReconnectNoticeAt = Date.now();
+          updates.push({
+            gameId: game.id,
+            reconnectWarning: true,
+            disconnectedColor: color,
+            remainingMs
+          });
+        }
+      }
     }
 
     return updates;
@@ -282,6 +373,26 @@ class LiveGameService extends EventEmitter {
       status: "ABORTED",
       endReason: "ABORTED"
     });
+  }
+
+  async resignGame(gameId, socketId) {
+    const game = this.games.get(gameId);
+    if (!game || game.status !== "active") return null;
+    const resignedColor =
+      game.players.white.socketId === socketId
+        ? "white"
+        : game.players.black.socketId === socketId
+          ? "black"
+          : null;
+    if (!resignedColor) return null;
+    const winnerColor = resignedColor === "white" ? "black" : "white";
+    game.status = "finishing";
+    const stored = await this.finalize(gameId, {
+      status: "COMPLETED",
+      endReason: "RESIGNATION",
+      winnerColor: getDatabaseColor(winnerColor)
+    });
+    return { stored, game, resignedColor, winnerColor };
   }
 
   async forfeitDisconnectedPlayer(gameId, winnerColor) {

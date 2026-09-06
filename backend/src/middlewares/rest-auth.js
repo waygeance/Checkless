@@ -12,8 +12,10 @@ function createRequireAuth({ prisma, clerkClient, authorizedParties }) {
         new Request("http://checkless.local/api", { headers }),
         { acceptsToken: "session_token", authorizedParties }
       );
-      if (!state.isAuthenticated)
+      if (!state.isAuthenticated) {
+        console.error("REST Auth failed:", state.reason, state.message);
         return res.status(401).json({ error: "AUTH_INVALID" });
+      }
       const user = await syncClerkUser(
         prisma,
         clerkClient,
@@ -23,7 +25,8 @@ function createRequireAuth({ prisma, clerkClient, authorizedParties }) {
         return res.status(403).json({ error: "ACCOUNT_SUSPENDED" });
       req.user = user;
       next();
-    } catch {
+    } catch (err) {
+      console.error("REST Auth exception:", err);
       res.status(401).json({ error: "AUTH_INVALID" });
     }
   };

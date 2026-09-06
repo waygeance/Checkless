@@ -18,7 +18,10 @@ export function usePlayerProfile(username) {
   const abortRef = useRef(null);
 
   useEffect(() => {
-    if (!username) return;
+    if (!username) {
+      setLoading(false);
+      return;
+    }
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;

@@ -11,6 +11,7 @@ import {
   Input,
   PageHeader
 } from "../components/ui";
+import { getPlayerUsername } from "../lib/user";
 
 const VARIANT_LABELS = {
   ONE_SECOND: "1s",
@@ -47,8 +48,8 @@ function elapsedLabel(game) {
 }
 
 export default function Games() {
-  const { user } = useUser();
-  const username = user?.username;
+  const { user, isLoaded } = useUser();
+  const username = getPlayerUsername(user);
 
   const [games, setGames] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
@@ -58,7 +59,10 @@ export default function Games() {
   const [search, setSearch] = useState("");
 
   const load = async (cursor = null, replace = true) => {
-    if (!username) return;
+    if (!username) {
+      setLoading(false);
+      return;
+    }
     if (replace) setLoading(true);
     else setLoadingMore(true);
     setError(null);
@@ -79,8 +83,9 @@ export default function Games() {
   };
 
   useEffect(() => {
+    if (!isLoaded) return;
     load();
-  }, [username]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [username, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Client-side search filter (opponent name or game ID)
   const filtered = search.trim()

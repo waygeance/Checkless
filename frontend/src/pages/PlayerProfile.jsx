@@ -23,6 +23,7 @@ import {
   LoadingState,
   PageHeader
 } from "../components/ui";
+import { getPlayerUsername } from "../lib/user";
 
 const VARIANT_META = {
   one_second: { label: "1s", display: "Lightning" },
@@ -50,7 +51,8 @@ export default function PlayerProfile({ embedded = false }) {
   const { isSignedIn } = useAuth();
   const { user: me } = useUser();
   const { username } = useParams();
-  const effectiveUsername = username === "me" || !username ? me?.username : username;
+  const myUsername = getPlayerUsername(me);
+  const effectiveUsername = username === "me" || !username ? myUsername : username;
 
   const { profile, games, nextCursor, loading, loadingMore, error, loadMore } =
     usePlayerProfile(effectiveUsername);
@@ -60,7 +62,7 @@ export default function PlayerProfile({ embedded = false }) {
   const [addingFriend, setAddingFriend] = useState(false);
   const [challenging, setChallenging] = useState(false);
 
-  const isSelf = me?.username?.toLowerCase() === effectiveUsername?.toLowerCase();
+  const isSelf = myUsername && effectiveUsername && myUsername.toLowerCase() === effectiveUsername.toLowerCase();
 
   const handleAddFriend = async () => {
     setAddingFriend(true);

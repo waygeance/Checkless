@@ -12,4 +12,7 @@ export function listPlayerGames(username, { limit = 20, cursor } = {}, token, si
     token,
     signal
   });
+}/** GET /api/me — authenticated user profile and DB sync */
+export function getMe(token, signal) {
+  return apiFetch("/api/me", { token, signal });
 }

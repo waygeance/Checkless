@@ -19,6 +19,7 @@ import {
 import { NavLink, Outlet } from "react-router-dom";
 import { getProfile } from "../../api/users";
 import { Badge, Button, Progress } from "../ui";
+import { getPlayerUsername, getPlayerDisplayName } from "../../lib/user";
 
 const primaryNav = [
   { label: "Home", to: "/home", icon: Home },
@@ -57,17 +58,18 @@ function SidebarLink({ item, onNavigate }) {
 
 function SidebarContent({ onNavigate }) {
   const { user } = useUser();
-  const username = user?.username || user?.firstName || "CoffeePlayer";
+  const playerUsername = getPlayerUsername(user);
+  const displayName = getPlayerDisplayName(user);
   const [variantStats, setVariantStats] = useState([]);
 
   useEffect(() => {
-    if (!user?.username) return;
+    if (!playerUsername) return;
     const controller = new AbortController();
-    getProfile(user.username, undefined, controller.signal)
+    getProfile(playerUsername, undefined, controller.signal)
       .then((res) => setVariantStats(res.profile?.stats ?? []))
       .catch(() => {});
     return () => controller.abort();
-  }, [user?.username]);
+  }, [playerUsername]);
 
   // Map variant enum -> display label
   const VARIANT_LABEL = { one_second: "1s", three_seconds: "3s", five_seconds: "5s" };
@@ -113,7 +115,7 @@ function SidebarContent({ onNavigate }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-cream">
-              {username}
+              {displayName}
             </p>
             <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.17em] text-cream-muted/60">
               Level 12 · Regular

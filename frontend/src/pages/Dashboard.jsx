@@ -23,6 +23,7 @@ import {
   Progress,
   SketchDivider
 } from "../components/ui";
+import { getPlayerUsername, getPlayerDisplayName } from "../lib/user";
 
 const VARIANT_META = {
   ONE_SECOND: { label: "1s", title: "Lightning", note: "Pure reflex", icon: Zap },
@@ -76,21 +77,25 @@ function getMyDelta(game, myUsername) {
   if (me?.ratingDelta == null) return null;
   return me.ratingDelta >= 0 ? `+${me.ratingDelta}` : `${me.ratingDelta}`;
 }
-
 export default function Dashboard() {
-  const { user } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
-  const firstName = user?.firstName || user?.username || "Player";
-  const username = user?.username;
+  const username = getPlayerUsername(user);
+  const displayName = getPlayerDisplayName(user);
 
   const [variantStats, setVariantStats] = useState([]);
   const [recentGames, setRecentGames] = useState([]);
   const [statsLoading, setStatsLoading] = useState(true);
   const [gamesLoading, setGamesLoading] = useState(true);
 
-  // Fetch profile for variant stats
+  // Fetch profile for variant stats & recent games
   useEffect(() => {
-    if (!username) return;
+    if (!isLoaded) return;
+    if (!username) {
+      setStatsLoading(false);
+      setGamesLoading(false);
+      return;
+    }
     const controller = new AbortController();
     getProfile(username, undefined, controller.signal)
       .then((res) => {
@@ -98,21 +103,16 @@ export default function Dashboard() {
         setStatsLoading(false);
       })
       .catch(() => setStatsLoading(false));
-    return () => controller.abort();
-  }, [username]);
 
-  // Fetch recent games
-  useEffect(() => {
-    if (!username) return;
-    const controller = new AbortController();
     listPlayerGames(username, { limit: 4 }, undefined, controller.signal)
       .then((res) => {
         setRecentGames(res.games ?? []);
         setGamesLoading(false);
       })
       .catch(() => setGamesLoading(false));
+
     return () => controller.abort();
-  }, [username]);
+  }, [username, isLoaded]);
 
   // Build variant cards from real stats
   const variantCards = Object.entries(VARIANT_META).map(([key, meta], index) => {
@@ -138,7 +138,7 @@ export default function Dashboard() {
       <motion.div variants={reveal}>
         <PageHeader
           eyebrow="Your table is ready"
-          title={`Good evening, ${firstName}.`}
+          title={`Good evening, ${displayName}.`}
           description="Pick a pace, revisit your latest positions, or pull up a chair at this week's tournament."
           action={
             <Button to="/play" size="large" icon={Swords}>

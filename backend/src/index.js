@@ -64,10 +64,9 @@ const adminService = new AdminService(prisma);
 const PORT = Number(process.env.PORT) || 8081;
 const HOST = process.env.HOST || "0.0.0.0";
 const allowedOrigins = buildAllowedOrigins(process.env.CORS_ORIGIN);
-const authorizedParties =
-  allowedOrigins.length > 0
-    ? allowedOrigins
-    : ["http://localhost:5173", "http://127.0.0.1:5173"];
+const authorizedParties = process.env.CLERK_AUTHORIZED_PARTIES
+  ? process.env.CLERK_AUTHORIZED_PARTIES.split(",").map((s) => s.trim())
+  : undefined;
 
 // ── Socket.io ────────────────────────────────────────
 
@@ -121,8 +120,14 @@ app.use(express.json());
 
 // ── Routes ───────────────────────────────────────────
 
+const requireAuth = createRequireAuth({ prisma, clerkClient, authorizedParties });
+
 app.use("/", healthRouter);
 app.use("/api/guest", createGuestRouter(prisma));
+app.get("/api/me", requireAuth, async (req, res) => {
+  const profile = await publicGameService.getProfile(req.user.username);
+  return res.json({ user: req.user, profile });
+});
 app.use(
   "/api",
   require("./routes/public").createPublicRouter(publicGameService)
@@ -131,7 +136,7 @@ app.use(
   "/api/admin",
   require("./routes/admin").createAdminRouter(
     adminService,
-    createRequireAuth({ prisma, clerkClient, authorizedParties }),
+    requireAuth,
     io,
     presenceService
   )
@@ -140,14 +145,14 @@ app.use(
   "/api/challenges",
   require("./routes/challenge").createChallengeRouter(
     challengeService,
-    createRequireAuth({ prisma, clerkClient, authorizedParties })
+    requireAuth
   )
 );
 app.use(
   "/api/social",
   require("./routes/social").createSocialRouter(
     socialService,
-    createRequireAuth({ prisma, clerkClient, authorizedParties })
+    requireAuth
   )
 );
 

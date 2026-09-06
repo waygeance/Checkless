@@ -167,8 +167,14 @@ class PublicGameService {
   }
 
   async getProfile(username) {
-    const user = await this.prisma.user.findUnique({
-      where: { normalizedUsername: username.toLowerCase() },
+    const normalized = username.toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { normalizedUsername: normalized },
+          { clerkUserId: username }
+        ]
+      },
       include: { variantStats: true }
     });
     if (!user) return null;
@@ -187,8 +193,14 @@ class PublicGameService {
   }
 
   async listPlayerGames(username, query) {
-    const user = await this.prisma.user.findUnique({
-      where: { normalizedUsername: username.toLowerCase() },
+    const normalized = username.toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { normalizedUsername: normalized },
+          { clerkUserId: username }
+        ]
+      },
       select: { id: true }
     });
     if (!user) return null;

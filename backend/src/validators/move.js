@@ -44,6 +44,7 @@ const makeMovePayloadSchema = z.object({
  * socket.on("find_game", payload => ...)
  */
 const findGamePayloadSchema = z.object({
+  mode: z.enum(["CASUAL", "RANKED"]).default("CASUAL"),
   variant: z.enum(["1s", "3s", "5s"], {
     errorMap: () => ({ message: "variant must be '1s', '3s', or '5s'" })
   })

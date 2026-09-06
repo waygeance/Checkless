@@ -22,13 +22,15 @@ class LiveGameService extends EventEmitter {
     this.games = new Map();
   }
 
-  async startCasualGame({ whitePlayer, blackPlayer, variant }) {
+  async startCasualGame({ whitePlayer, blackPlayer, variant, mode = "CASUAL", rated = false }) {
     const chess = new SimultaneousChess();
     const storedGame = await this.persistence.createCasualGame({
       whiteUser: whitePlayer.user,
       blackUser: blackPlayer.user,
       whiteIdentity: whitePlayer.identity,
       blackIdentity: blackPlayer.identity,
+      mode,
+      rated,
       variant,
       initialFen: chess.fen()
     });
@@ -43,6 +45,8 @@ class LiveGameService extends EventEmitter {
     const game = {
       id: storedGame.id,
       variant,
+      mode,
+      rated,
       variantTime,
       startedAt: storedGame.startedAt,
       players: {
@@ -57,6 +61,12 @@ class LiveGameService extends EventEmitter {
           variantTime
         )
       },
+      participants: storedGame.participants.map((participant) => ({
+        color: participant.color.toLowerCase(),
+        username: participant.usernameSnapshot,
+        displayName: participant.displayNameSnapshot,
+        avatarUrl: participant.avatarUrlSnapshot
+      })),
       chess,
       moveHistory: [],
       acceptedClientMoves: new Map(),
@@ -182,6 +192,25 @@ class LiveGameService extends EventEmitter {
 
   getGame(gameId) {
     return this.games.get(gameId) || null;
+  }
+
+  getSpectatorState(gameId) {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+    return {
+      gameId: game.id,
+      variant: game.variant,
+      status: game.status,
+      fen: game.chess.fen(),
+      participants: game.participants,
+      lastSequence: game.lastSequence,
+      timers: {
+        white: game.players.white.timerValue,
+        black: game.players.black.timerValue
+      },
+      whiteCanMove: game.players.white.canMove,
+      blackCanMove: game.players.black.canMove
+    };
   }
 
   tick(elapsedMs) {

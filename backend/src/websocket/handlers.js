@@ -63,8 +63,22 @@ function registerGameServiceEvents(io, gameService) {
   });
 }
 
-function registerHandlers(io, socket, { gameService, matchmakingService }) {
+function registerHandlers(
+  io,
+  socket,
+  { gameService, matchmakingService, presenceService }
+) {
   console.log("Player connected:", socket.id);
+  const userId = socket.data.user?.id;
+  if (userId && presenceService) {
+    void presenceService.online(userId, socket.id).then((friends) => {
+      for (const friendId of friends) {
+        for (const friendSocket of presenceService.socketsFor(friendId)) {
+          io.to(friendSocket).emit("friend_presence", { userId, online: true });
+        }
+      }
+    });
+  }
 
   socket.on("latency_ping", (payload, acknowledge) => {
     if (typeof acknowledge !== "function") return;
@@ -78,6 +92,34 @@ function registerHandlers(io, socket, { gameService, matchmakingService }) {
           : null,
       serverAt: Date.now()
     });
+  });
+
+  socket.on("spectate_game", (payload) => {
+    const parsed = validateSocketPayload(gameActionPayloadSchema, payload);
+    if (parsed.error) {
+      socket.emit("spectate_failed", {
+        reason: "INVALID_PAYLOAD",
+        message: parsed.error
+      });
+      return;
+    }
+    const state = gameService.getSpectatorState(parsed.data.gameId);
+    if (!state) {
+      socket.emit("spectate_failed", {
+        reason: "GAME_NOT_LIVE",
+        message: "That game is not currently live"
+      });
+      return;
+    }
+    socket.join(state.gameId);
+    socket.emit("spectate_started", state);
+  });
+
+  socket.on("leave_spectating", (payload) => {
+    const parsed = validateSocketPayload(gameActionPayloadSchema, payload);
+    if (parsed.error) return;
+    socket.leave(parsed.data.gameId);
+    socket.emit("spectating_left", { gameId: parsed.data.gameId });
   });
 
   socket.on("find_game", async (payload) => {
@@ -98,7 +140,8 @@ function registerHandlers(io, socket, { gameService, matchmakingService }) {
           type: "human",
           id: socket.data.user.id
         },
-        variant: parsed.data.variant
+        variant: parsed.data.variant,
+        mode: parsed.data.mode
       });
 
       if (match.status === "waiting") {
@@ -116,6 +159,13 @@ function registerHandlers(io, socket, { gameService, matchmakingService }) {
         socket.emit("matchmaking_error", {
           reason: "ALREADY_PLAYING",
           message: "This account already has an active game"
+        });
+        return;
+      }
+      if (match.status === "ranked-auth-required") {
+        socket.emit("matchmaking_error", {
+          reason: "RANKED_AUTH_REQUIRED",
+          message: "Ranked matchmaking requires an authenticated human account"
         });
         return;
       }
@@ -160,6 +210,8 @@ function registerHandlers(io, socket, { gameService, matchmakingService }) {
       const sharedStart = {
         gameId: match.game.id,
         variant: match.game.variant,
+        mode: match.game.mode,
+        rated: match.game.rated,
         fen: match.game.chess.fen()
       };
       whiteSocket.emit("game_start", { ...sharedStart, color: "white" });
@@ -323,6 +375,18 @@ function registerHandlers(io, socket, { gameService, matchmakingService }) {
   });
 
   socket.on("disconnect", () => {
+    if (userId && presenceService) {
+      void presenceService.offline(userId, socket.id).then((friends) => {
+        for (const friendId of friends) {
+          for (const friendSocket of presenceService.socketsFor(friendId)) {
+            io.to(friendSocket).emit("friend_presence", {
+              userId,
+              online: false
+            });
+          }
+        }
+      });
+    }
     matchmakingService.leave(socket.id);
 
     const game = gameService.findGameBySocketId(socket.id);

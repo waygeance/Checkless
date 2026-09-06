@@ -3,14 +3,17 @@
  * deliberately never persisted to PostgreSQL.
  */
 class MatchmakingService {
-  constructor(gameService) {
+  constructor(gameService, prisma) {
     this.gameService = gameService;
+    this.prisma = prisma;
     this.waitingPlayers = [];
     this.matchingSocketIds = new Set();
     this.cancelledMatchingSocketIds = new Set();
   }
 
-  async join({ socketId, user, identity, variant }) {
+  async join({ socketId, user, identity, variant, mode = "CASUAL" }) {
+    if (mode === "RANKED" && user.kind !== "HUMAN")
+      return { status: "ranked-auth-required" };
     if (
       this.gameService.findGameBySocketId(socketId) ||
       this.gameService.findGameByUserId(user.id)
@@ -22,6 +25,21 @@ class MatchmakingService {
     }
 
     this.leave(socketId);
+    if (mode === "RANKED" && this.prisma) {
+      const stats = await this.prisma.playerVariantStats.findUnique({
+        where: {
+          userId_variant: {
+            userId: user.id,
+            variant: {
+              "1s": "ONE_SECOND",
+              "3s": "THREE_SECONDS",
+              "5s": "FIVE_SECONDS"
+            }[variant]
+          }
+        }
+      });
+      user = { ...user, rating: stats?.rating ?? 1200 };
+    }
 
     if (
       this.waitingPlayers.some((candidate) => candidate.user.id === user.id)
@@ -32,18 +50,27 @@ class MatchmakingService {
     const waitingIndex = this.waitingPlayers.findIndex(
       (candidate) =>
         candidate.variant === variant &&
+        candidate.mode === mode &&
         candidate.socketId !== socketId &&
         candidate.user.id !== user.id &&
-        !this.matchingSocketIds.has(candidate.socketId)
+        !this.matchingSocketIds.has(candidate.socketId) &&
+        (mode !== "RANKED" || this.ratingCompatible(candidate, { user }))
     );
 
     if (waitingIndex === -1) {
-      this.waitingPlayers.push({ socketId, user, identity, variant });
+      this.waitingPlayers.push({
+        socketId,
+        user,
+        identity,
+        variant,
+        mode,
+        queuedAt: Date.now()
+      });
       return { status: "waiting" };
     }
 
     const [whitePlayer] = this.waitingPlayers.splice(waitingIndex, 1);
-    const blackPlayer = { socketId, user, identity, variant };
+    const blackPlayer = { socketId, user, identity, variant, mode };
     this.matchingSocketIds.add(whitePlayer.socketId);
     this.matchingSocketIds.add(blackPlayer.socketId);
 
@@ -51,7 +78,9 @@ class MatchmakingService {
       const game = await this.gameService.startCasualGame({
         whitePlayer,
         blackPlayer,
-        variant
+        variant,
+        mode,
+        rated: mode === "RANKED"
       });
       if (
         this.cancelledMatchingSocketIds.has(whitePlayer.socketId) ||
@@ -68,6 +97,15 @@ class MatchmakingService {
       this.cancelledMatchingSocketIds.delete(whitePlayer.socketId);
       this.cancelledMatchingSocketIds.delete(blackPlayer.socketId);
     }
+  }
+
+  ratingCompatible(first, second) {
+    const elapsed = Math.floor((Date.now() - first.queuedAt) / 1000);
+    const window = Math.min(400, 100 + elapsed * 50);
+    return (
+      Math.abs((first.user.rating || 1200) - (second.user.rating || 1200)) <=
+      window
+    );
   }
 
   leave(socketId) {

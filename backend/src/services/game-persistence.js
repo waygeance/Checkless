@@ -23,7 +23,9 @@ class GamePersistenceService {
     whiteIdentity,
     blackIdentity,
     variant,
-    initialFen
+    initialFen,
+    mode = "CASUAL",
+    rated = false
   }) {
     if (!whiteUser?.id || !blackUser?.id) {
       throw new GamePersistenceError(
@@ -43,9 +45,9 @@ class GamePersistenceService {
 
     return this.prisma.game.create({
       data: {
-        mode: "CASUAL",
+        mode,
         variant: getDatabaseVariant(variant),
-        rated: false,
+        rated,
         rulesVersion: 1,
         initialFen,
         participants: {
@@ -185,10 +187,36 @@ class GamePersistenceService {
 
       // Statistics are updated in the same transaction and only after the
       // ACTIVE -> terminal transition succeeds, making finalization idempotent.
+      const ratingByUser = new Map();
+      for (const participant of finalizedGame.participants) {
+        if (!participant.userId) continue;
+        const stats = await transaction.playerVariantStats.findUnique({
+          where: {
+            userId_variant: {
+              userId: participant.userId,
+              variant: finalizedGame.variant
+            }
+          }
+        });
+        ratingByUser.set(participant.userId, stats?.rating ?? 1200);
+      }
       for (const participant of finalizedGame.participants) {
         if (!participant.userId) continue;
         const isWinner = winnerColor && participant.color === winnerColor;
         const isLoser = winnerColor && participant.color !== winnerColor;
+        const before = ratingByUser.get(participant.userId) ?? 1200;
+        const opponentParticipant = finalizedGame.participants.find(
+          (item) => item.color !== participant.color
+        );
+        const opponentRating = opponentParticipant?.userId
+          ? (ratingByUser.get(opponentParticipant.userId) ?? 1200)
+          : 1200;
+        const expected = 1 / (1 + 10 ** ((opponentRating - before) / 400));
+        const actual = isWinner ? 1 : isLoser ? 0 : 0.5;
+        const after =
+          finalizedGame.rated && winnerColor
+            ? Math.round(before + 32 * (actual - expected))
+            : before;
         await transaction.playerVariantStats.upsert({
           where: {
             userId_variant: {
@@ -202,15 +230,38 @@ class GamePersistenceService {
             totalWins: isWinner ? 1 : 0,
             totalLosses: isLoser ? 1 : 0,
             totalNoResults: winnerColor ? 0 : 1,
+            rating: after,
+            rankedWins: finalizedGame.rated && isWinner ? 1 : 0,
+            rankedLosses: finalizedGame.rated && isLoser ? 1 : 0,
+            rankedNoResults: finalizedGame.rated && !winnerColor ? 1 : 0,
             lastPlayedAt: finalizedGame.endedAt
           },
           update: {
             totalWins: isWinner ? { increment: 1 } : undefined,
             totalLosses: isLoser ? { increment: 1 } : undefined,
             totalNoResults: winnerColor ? undefined : { increment: 1 },
+            rating: after,
+            rankedWins:
+              finalizedGame.rated && isWinner ? { increment: 1 } : undefined,
+            rankedLosses:
+              finalizedGame.rated && isLoser ? { increment: 1 } : undefined,
+            rankedNoResults:
+              finalizedGame.rated && !winnerColor
+                ? { increment: 1 }
+                : undefined,
             lastPlayedAt: finalizedGame.endedAt
           }
         });
+        if (finalizedGame.rated && winnerColor) {
+          await transaction.gameParticipant.update({
+            where: { id: participant.id },
+            data: {
+              ratingBefore: before,
+              ratingAfter: after,
+              ratingDelta: after - before
+            }
+          });
+        }
       }
 
       return finalizedGame;

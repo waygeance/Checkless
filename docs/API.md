@@ -4,6 +4,22 @@ The Checkless backend communicates with the frontend almost exclusively over Soc
 
 ## Client-to-Server Events
 
+### `spectate_game`
+
+Joins a live game's read-only room and returns the current board, timers,
+participants, and last accepted sequence. Spectators cannot make moves, abort,
+resign, or reclaim a participant seat.
+
+- **Payload**: `{ gameId: string }`
+- **Success**: `spectate_started`
+- **Failure**: `spectate_failed`
+
+### `leave_spectating`
+
+Leaves a live game's read-only room.
+
+- **Payload**: `{ gameId: string }`
+
 ## Guest identity
 
 `POST /api/guest` creates a durable anonymous identity and returns `{ token,
@@ -22,11 +38,34 @@ before allowing matchmaking or reconnect.
 
 Responses omit Clerk IDs, guest IDs, client move IDs, and moderation fields.
 
+## Social HTTP endpoints
+
+All `/api/social` endpoints require an authenticated Clerk bearer token:
+`GET /search?q=`, `GET /friends`, `GET /requests`, `POST /requests`,
+`POST /requests/:id/accept`, `POST /requests/:id/decline`,
+`DELETE /requests/:id`, `DELETE /friends/:userId`, `GET /blocks`,
+`POST /blocks`, and `DELETE /blocks/:userId`.
+
+Authenticated sockets receive `friend_presence { userId, online }` only for
+accepted friends.
+
+## Challenge HTTP endpoints
+
+Authenticated users can use `/api/challenges`:
+
+- `POST /` with `{ variant: "1s" | "3s" | "5s" }` creates a public,
+  unrated challenge that expires after 15 minutes.
+- `GET /:code` looks up a challenge code and lazily marks expired challenges.
+- `POST /:code/accept` atomically claims the opponent seat.
+- `DELETE /:id` cancels an open challenge owned by the caller.
+
 ### `find_game`
 
 Requests to join the matchmaking queue.
 
 - **Payload**: `{ variant: string }` (e.g. "1s", "3s", "5s")
+- Include `mode: "CASUAL" | "RANKED"` to select the queue; ranked requires an
+  authenticated human and starts at 1200 per variant.
 - **Behavior**: The server attempts to find another player in the queue for the requested variant. If found, a game starts. If not, the player waits in the queue.
 
 ### `abort_match`

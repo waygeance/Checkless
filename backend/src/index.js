@@ -35,6 +35,10 @@ const {
 } = require("./websocket/handlers");
 const healthRouter = require("./routes/health");
 const { createGuestRouter } = require("./routes/guest");
+const { createRequireAuth } = require("./middlewares/rest-auth");
+const { SocialService } = require("./services/social");
+const { PresenceService } = require("./services/presence");
+const { ChallengeService } = require("./services/challenge");
 
 // ── Core Instances ───────────────────────────────────
 
@@ -48,8 +52,11 @@ const gameService = new LiveGameService({
   moveBatchSize: Number(process.env.MOVE_BATCH_SIZE) || 10,
   moveFlushIntervalMs: Number(process.env.MOVE_FLUSH_INTERVAL_MS) || 5000
 });
-const matchmakingService = new MatchmakingService(gameService);
+const matchmakingService = new MatchmakingService(gameService, prisma);
 const publicGameService = new PublicGameService(prisma);
+const socialService = new SocialService(prisma);
+const presenceService = new PresenceService(prisma);
+const challengeService = new ChallengeService(prisma);
 
 const PORT = Number(process.env.PORT) || 8081;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -102,6 +109,20 @@ app.use(
   "/api",
   require("./routes/public").createPublicRouter(publicGameService)
 );
+app.use(
+  "/api/challenges",
+  require("./routes/challenge").createChallengeRouter(
+    challengeService,
+    createRequireAuth({ prisma, clerkClient, authorizedParties })
+  )
+);
+app.use(
+  "/api/social",
+  require("./routes/social").createSocialRouter(
+    socialService,
+    createRequireAuth({ prisma, clerkClient, authorizedParties })
+  )
+);
 
 // Future routes go here:
 // app.use("/api/users",       require("./routes/users"));
@@ -113,9 +134,19 @@ app.use(
 
 registerGameServiceEvents(io, gameService);
 io.on("connection", (socket) =>
-  registerHandlers(io, socket, { gameService, matchmakingService })
+  registerHandlers(io, socket, {
+    gameService,
+    matchmakingService,
+    presenceService
+  })
 );
 startTimerTick(io, gameService);
+const challengeExpiryTimer = setInterval(() => {
+  void challengeService
+    .expire()
+    .catch((error) => console.error("Challenge expiry failed", error));
+}, 60_000);
+challengeExpiryTimer.unref?.();
 
 // ── Start ────────────────────────────────────────────
 

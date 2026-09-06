@@ -6,7 +6,6 @@ import { MiniBoard } from "../components/app/MiniBoard";
 import { Badge, Button, Card, SketchDivider } from "../components/ui";
 import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
-import { liveGames } from "../data/platform";
 
 const steps = [
   {
@@ -168,38 +167,17 @@ export default function Home() {
                 See every table
               </Button>
             </div>
-            <div className="mt-9 grid gap-5 lg:grid-cols-3">
-              {liveGames.map((game) => (
-                <Card key={game.id} className="p-5">
-                  <div className="flex items-center justify-between">
-                    <Badge tone="danger">Live</Badge>
-                    <span className="font-mono text-xs text-cream-muted">
-                      {game.viewers} watching
-                    </span>
-                  </div>
-                  <h3 className="mt-6 font-display text-2xl font-semibold">
-                    {game.white}
-                  </h3>
-                  <p className="my-1 font-display italic text-brass-light">
-                    against
-                  </p>
-                  <h3 className="font-display text-2xl font-semibold">
-                    {game.black}
-                  </h3>
-                  <div className="mt-6 flex items-center justify-between border-t border-cream/[0.07] pt-4">
-                    <span className="font-mono text-xs text-cream-muted">
-                      {game.variant} · move {game.sequence}
-                    </span>
-                    <Button
-                      to={`/games/${game.id}`}
-                      variant="outline"
-                      size="small"
-                    >
-                      Watch
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+            <div className="mt-9 flex flex-col items-center justify-center gap-5 rounded-2xl border border-cream/[0.07] bg-roasted/40 py-14 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-brass/25 bg-walnut">
+                <Eye className="h-7 w-7 text-brass-light" />
+              </div>
+              <div>
+                <p className="font-display text-2xl font-semibold text-cream">Games are happening right now.</p>
+                <p className="mt-2 text-sm text-cream-muted">Join the café to watch any live table — no account required.</p>
+              </div>
+              <Button to="/watch" size="small" variant="outline" icon={Eye}>
+                Open watch room
+              </Button>
             </div>
           </div>
         </section>

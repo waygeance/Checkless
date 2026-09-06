@@ -18,6 +18,7 @@ require("dotenv").config({ path: "../.env" });
 
 const express = require("express");
 const http = require("http");
+const cors = require("cors");
 const { Server } = require("socket.io");
 const { PrismaClient } = require("@prisma/client");
 
@@ -101,6 +102,21 @@ io.use(
 
 // ── Express Middleware ───────────────────────────────
 
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, same-origin)
+      if (!origin) return callback(null, true);
+      const allowed =
+        allowedOrigins.length === 0
+          ? true
+          : isAllowedOrigin(origin, allowedOrigins);
+      callback(allowed ? null : new Error("Not allowed by CORS"), allowed);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "DELETE", "PATCH", "PUT", "OPTIONS"]
+  })
+);
 app.use(express.json());
 
 // ── Routes ───────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Show, UserButton, useUser } from "@clerk/react";
 import {
   Bell,
@@ -17,7 +17,7 @@ import {
   X
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
-import { ratings } from "../../data/platform";
+import { getProfile } from "../../api/users";
 import { Badge, Button, Progress } from "../ui";
 
 const primaryNav = [
@@ -58,6 +58,22 @@ function SidebarLink({ item, onNavigate }) {
 function SidebarContent({ onNavigate }) {
   const { user } = useUser();
   const username = user?.username || user?.firstName || "CoffeePlayer";
+  const [variantStats, setVariantStats] = useState([]);
+
+  useEffect(() => {
+    if (!user?.username) return;
+    const controller = new AbortController();
+    getProfile(user.username, undefined, controller.signal)
+      .then((res) => setVariantStats(res.profile?.stats ?? []))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [user?.username]);
+
+  // Map variant enum -> display label
+  const VARIANT_LABEL = { one_second: "1s", three_seconds: "3s", five_seconds: "5s" };
+  const displayRatings = variantStats
+    .sort((a, b) => a.variant.localeCompare(b.variant))
+    .map((s) => ({ label: VARIANT_LABEL[s.variant] ?? s.variant, value: s.rating }));
 
   return (
     <div className="flex h-full flex-col">
@@ -111,16 +127,19 @@ function SidebarContent({ onNavigate }) {
           detail="640 / 1,000 XP"
         />
         <div className="mt-4 grid grid-cols-3 divide-x divide-cream/[0.08] border-t border-cream/[0.08] pt-3">
-          {ratings.map((rating) => (
-            <div key={rating.label} className="text-center">
-              <div className="font-mono text-[9px] text-cream-muted">
-                {rating.label}
-              </div>
-              <div className="mt-1 text-sm font-bold text-cream">
-                {rating.value}
-              </div>
-            </div>
-          ))}
+          {displayRatings.length > 0
+            ? displayRatings.map((rating) => (
+                <div key={rating.label} className="text-center">
+                  <div className="font-mono text-[9px] text-cream-muted">{rating.label}</div>
+                  <div className="mt-1 text-sm font-bold text-cream">{rating.value}</div>
+                </div>
+              ))
+            : ["1s", "3s", "5s"].map((label) => (
+                <div key={label} className="text-center">
+                  <div className="font-mono text-[9px] text-cream-muted">{label}</div>
+                  <div className="mt-1 h-4 w-8 mx-auto animate-pulse rounded bg-cream/10" />
+                </div>
+              ))}
         </div>
       </div>
 
@@ -194,9 +213,6 @@ export function AppShell() {
             <span>Season of the Open King</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Badge tone="brass" className="hidden sm:inline-flex">
-              Preview data
-            </Badge>
             <Button
               aria-label="Notifications"
               size="small"

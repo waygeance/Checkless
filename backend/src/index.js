@@ -26,6 +26,7 @@ const { createSocketAuthMiddleware } = require("./middlewares/socket-auth");
 const { GamePersistenceService } = require("./services/game-persistence");
 const { LiveGameService } = require("./services/live-game");
 const { MatchmakingService } = require("./services/matchmaking");
+const { PublicGameService } = require("./services/public-game");
 const { buildAllowedOrigins, isAllowedOrigin } = require("./utils/cors");
 const {
   registerGameServiceEvents,
@@ -48,6 +49,7 @@ const gameService = new LiveGameService({
   moveFlushIntervalMs: Number(process.env.MOVE_FLUSH_INTERVAL_MS) || 5000
 });
 const matchmakingService = new MatchmakingService(gameService);
+const publicGameService = new PublicGameService(prisma);
 
 const PORT = Number(process.env.PORT) || 8081;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -96,6 +98,10 @@ app.use(express.json());
 
 app.use("/", healthRouter);
 app.use("/api/guest", createGuestRouter(prisma));
+app.use(
+  "/api",
+  require("./routes/public").createPublicRouter(publicGameService)
+);
 
 // Future routes go here:
 // app.use("/api/users",       require("./routes/users"));

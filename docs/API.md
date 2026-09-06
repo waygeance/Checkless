@@ -11,6 +11,17 @@ guestId, publicAlias }`. Store only the opaque token in the browser and send it
 as Socket.IO `auth.token`; the server verifies its signature and token version
 before allowing matchmaking or reconnect.
 
+## Public HTTP endpoints
+
+- `GET /api/games/:gameId` — public game summary and participant snapshots.
+- `GET /api/games/:gameId/moves?cursor=&limit=` — ordered replay moves.
+- `GET /api/games/:gameId/replay` — validated FEN frames from `initialFen`.
+- `GET /api/games?cursor=&limit=` — completed public games.
+- `GET /api/users/:username` — public profile and variant statistics.
+- `GET /api/users/:username/games?cursor=&limit=` — that player’s completed games.
+
+Responses omit Clerk IDs, guest IDs, client move IDs, and moderation fields.
+
 ### `find_game`
 
 Requests to join the matchmaking queue.

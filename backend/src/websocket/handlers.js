@@ -1,12 +1,11 @@
 /**
- * Socket.io event handlers for the Checkless game server.
+ * Socket.IO transport handlers.
  *
- * Manages matchmaking, game lifecycle, move processing,
- * timer ticks, and disconnection cleanup.
+ * These handlers validate transport payloads and publish service results. Game
+ * rules, matchmaking state, buffering, and PostgreSQL mutations live in their
+ * dedicated services.
  */
 
-const { SimultaneousChess } = require("../engine/chess");
-const { formatCmnMove } = require("../utils/cmn");
 const {
   makeMovePayloadSchema,
   findGamePayloadSchema,
@@ -14,101 +13,39 @@ const {
   validateSocketPayload
 } = require("../validators/move");
 
-const TICK_INTERVAL = 100;
-const VARIANT_TIMES = { "1s": 1000, "3s": 3000, "5s": 5000 };
+const TICK_INTERVAL_MS = 100;
 
-const games = new Map();
-const waitingPlayers = [];
+function startTimerTick(io, gameService) {
+  let lastTimerTickAt = Date.now();
 
-let lastTimerTickAt = Date.now();
-
-// ── Game Helpers ────────────────────────────────────
-
-function createGame(player1, player2, variant) {
-  const variantTime = VARIANT_TIMES[variant];
-
-  return {
-    id: `game_${Date.now()}`,
-    variant,
-    variantTime,
-    players: {
-      white: {
-        socketId: player1,
-        timerValue: variantTime,
-        canMove: false,
-        lastMoveAt: null
-      },
-      black: {
-        socketId: player2,
-        timerValue: variantTime,
-        canMove: false,
-        lastMoveAt: null
-      }
-    },
-    chess: new SimultaneousChess(),
-    moveHistory: [],
-    lastSequence: 0,
-    status: "active"
-  };
-}
-
-function removeWaitingPlayer(socketId) {
-  const index = waitingPlayers.findIndex((p) => p.socketId === socketId);
-  if (index === -1) return null;
-  return waitingPlayers.splice(index, 1)[0];
-}
-
-function findGameBySocketId(socketId) {
-  for (const [gameId, game] of games.entries()) {
-    if (game.status !== "active") continue;
-
-    if (
-      game.players.white.socketId === socketId ||
-      game.players.black.socketId === socketId
-    ) {
-      return { gameId, game };
-    }
-  }
-
-  return null;
-}
-
-// ── Timer Tick ──────────────────────────────────────
-
-function startTimerTick(io) {
-  setInterval(() => {
+  const interval = setInterval(() => {
     const now = Date.now();
     const elapsed = Math.max(1, now - lastTimerTickAt);
     lastTimerTickAt = now;
 
-    games.forEach((game) => {
-      if (game.status !== "active") return;
+    for (const update of gameService.tick(elapsed)) {
+      io.to(update.gameId).volatile.emit("timer_update", update);
+    }
+  }, TICK_INTERVAL_MS);
 
-      ["white", "black"].forEach((color) => {
-        const player = game.players[color];
-
-        if (player.timerValue > 0) {
-          player.timerValue = Math.max(0, player.timerValue - elapsed);
-          if (player.timerValue === 0) player.canMove = true;
-        }
-      });
-
-      io.to(game.id).volatile.emit("timer_update", {
-        white: game.players.white.timerValue,
-        black: game.players.black.timerValue,
-        whiteCanMove: game.players.white.canMove,
-        blackCanMove: game.players.black.canMove
-      });
-    });
-  }, TICK_INTERVAL);
+  interval.unref?.();
+  return interval;
 }
 
-// ── Connection Handler ──────────────────────────────
+function registerGameServiceEvents(io, gameService) {
+  gameService.on("persistence_error", ({ game }) => {
+    io.to(game.id).emit("game_over", {
+      reason: "SERVER_INTERRUPTED",
+      winner: null,
+      fen: game.chess.fen()
+    });
+    io.in(game.id).socketsLeave(game.id);
+  });
+}
 
-function registerHandlers(io, socket) {
+function registerHandlers(io, socket, { gameService, matchmakingService }) {
   console.log("Player connected:", socket.id);
 
-  // Latency probe
   socket.on("latency_ping", (payload, acknowledge) => {
     if (typeof acknowledge !== "function") return;
 
@@ -123,52 +60,100 @@ function registerHandlers(io, socket) {
     });
   });
 
-  // Matchmaking
-  socket.on("find_game", (payload) => {
+  socket.on("find_game", async (payload) => {
     const parsed = validateSocketPayload(findGamePayloadSchema, payload);
-    if (parsed.error) return;
-    const { variant } = parsed.data;
-    if (!VARIANT_TIMES[variant]) return;
-    if (findGameBySocketId(socket.id)) return;
-
-    removeWaitingPlayer(socket.id);
-
-    const waiting = waitingPlayers.find(
-      (p) => p.variant === variant && p.socketId !== socket.id
-    );
-
-    if (waiting) {
-      const game = createGame(waiting.socketId, socket.id, variant);
-      games.set(game.id, game);
-
-      io.sockets.sockets.get(waiting.socketId)?.join(game.id);
-      socket.join(game.id);
-
-      io.to(waiting.socketId).emit("game_start", {
-        gameId: game.id,
-        color: "white",
-        variant
+    if (parsed.error) {
+      socket.emit("matchmaking_error", {
+        reason: "INVALID_PAYLOAD",
+        message: parsed.error
       });
-      io.to(socket.id).emit("game_start", {
-        gameId: game.id,
-        color: "black",
-        variant
+      return;
+    }
+
+    try {
+      const match = await matchmakingService.join({
+        socketId: socket.id,
+        user: socket.data.user,
+        variant: parsed.data.variant
       });
 
-      waitingPlayers.splice(waitingPlayers.indexOf(waiting), 1);
-    } else {
-      waitingPlayers.push({ socketId: socket.id, variant });
-      socket.emit("waiting", { message: "Searching for opponent..." });
+      if (match.status === "waiting") {
+        socket.emit("waiting", { message: "Searching for opponent..." });
+        return;
+      }
+      if (match.status === "already-queued") {
+        socket.emit("matchmaking_error", {
+          reason: "ALREADY_QUEUED",
+          message: "This account is already searching from another connection"
+        });
+        return;
+      }
+      if (match.status === "already-playing") {
+        socket.emit("matchmaking_error", {
+          reason: "ALREADY_PLAYING",
+          message: "This account already has an active game"
+        });
+        return;
+      }
+      if (match.status === "error") {
+        console.error("Could not create a persisted game", match.error);
+        const errorPayload = {
+          reason: match.error.code || "GAME_CREATION_FAILED",
+          message: "The match could not be started. Please try again."
+        };
+        io.to(match.whitePlayer.socketId).emit(
+          "matchmaking_error",
+          errorPayload
+        );
+        io.to(match.blackPlayer.socketId).emit(
+          "matchmaking_error",
+          errorPayload
+        );
+        return;
+      }
+      if (match.status === "cancelled") {
+        await gameService.abortGame(match.game.id);
+        return;
+      }
+      if (match.status !== "matched") return;
+
+      const whiteSocket = io.sockets.sockets.get(match.whitePlayer.socketId);
+      const blackSocket = io.sockets.sockets.get(match.blackPlayer.socketId);
+
+      if (!whiteSocket || !blackSocket) {
+        await gameService.abortGame(match.game.id);
+        const connectedSocket = whiteSocket || blackSocket;
+        connectedSocket?.emit("matchmaking_error", {
+          reason: "OPPONENT_DISCONNECTED",
+          message: "Your opponent disconnected before the game started"
+        });
+        return;
+      }
+
+      whiteSocket.join(match.game.id);
+      blackSocket.join(match.game.id);
+
+      const sharedStart = {
+        gameId: match.game.id,
+        variant: match.game.variant,
+        fen: match.game.chess.fen()
+      };
+      whiteSocket.emit("game_start", { ...sharedStart, color: "white" });
+      blackSocket.emit("game_start", { ...sharedStart, color: "black" });
+    } catch (error) {
+      console.error("Could not create a persisted game", error);
+      socket.emit("matchmaking_error", {
+        reason: error.code || "GAME_CREATION_FAILED",
+        message: "The match could not be started. Please try again."
+      });
     }
   });
 
-  // Abort match
-  socket.on("abort_match", (payload) => {
+  socket.on("abort_match", async (payload) => {
     const parsed = validateSocketPayload(abortMatchPayloadSchema, payload);
     if (parsed.error) return;
-    const { gameId } = parsed.data;
-    const waitingPlayer = removeWaitingPlayer(socket.id);
 
+    const waitingPlayer = matchmakingService.leave(socket.id);
     if (waitingPlayer) {
       socket.emit("match_aborted", {
         message: "Matchmaking cancelled. You are back in the lobby."
@@ -176,187 +161,109 @@ function registerHandlers(io, socket) {
       return;
     }
 
-    const activeMatch = findGameBySocketId(socket.id);
-
-    if (!activeMatch) {
-      socket.emit("match_aborted", {
-        message: "No active match to abort."
-      });
+    const game = gameService.findGameBySocketId(socket.id);
+    if (!game) {
+      socket.emit("match_aborted", { message: "No active match to abort." });
       return;
     }
+    if (parsed.data.gameId && parsed.data.gameId !== game.id) return;
 
-    if (gameId && gameId !== activeMatch.gameId) return;
-
-    const { game, gameId: activeGameId } = activeMatch;
     const playerColor =
       game.players.white.socketId === socket.id ? "white" : "black";
     const opponentColor = playerColor === "white" ? "black" : "white";
     const opponentSocketId = game.players[opponentColor].socketId;
 
-    game.status = "finished";
-    socket.leave(activeGameId);
-    io.sockets.sockets.get(opponentSocketId)?.leave(activeGameId);
+    try {
+      await gameService.abortGame(game.id);
+      socket.leave(game.id);
+      io.sockets.sockets.get(opponentSocketId)?.leave(game.id);
 
-    socket.emit("match_aborted", {
-      message: "Match aborted. You are back in the lobby."
-    });
-
-    io.to(opponentSocketId).emit("game_over", {
-      reason: "opponent_aborted",
-      winner: opponentColor,
-      fen: game.chess.fen()
-    });
-
-    games.delete(activeGameId);
+      socket.emit("match_aborted", {
+        message: "Match aborted. You are back in the lobby."
+      });
+      io.to(opponentSocketId).emit("game_over", {
+        reason: "opponent_aborted",
+        winner: opponentColor,
+        fen: game.chess.fen()
+      });
+    } catch (error) {
+      console.error(`Could not abort game ${game.id}`, error);
+    }
   });
 
-  // Make move
   socket.on("make_move", (payload) => {
     const parsed = validateSocketPayload(makeMovePayloadSchema, payload);
     if (parsed.error) {
-      return socket.emit("move_rejected", {
+      socket.emit("move_rejected", {
         reason: "INVALID_PAYLOAD",
         message: parsed.error
       });
-    }
-    const { gameId, move } = parsed.data;
-    const game = games.get(gameId);
-    if (!game || game.status !== "active") return;
-
-    if (
-      game.players.white.socketId !== socket.id &&
-      game.players.black.socketId !== socket.id
-    ) {
       return;
     }
 
-    const playerColor =
-      game.players.white.socketId === socket.id ? "white" : "black";
-    const player = game.players[playerColor];
-
-    if (!player.canMove) {
-      return socket.emit("move_rejected", {
-        reason: "TIMER_NOT_READY",
-        message: "Wait for your timer to reach 0"
-      });
-    }
-
-    // move.from/to are already validated squares by Zod; pass directly to engine
-    const engineColor = playerColor === "white" ? "w" : "b";
-    const result = game.chess.move(move, engineColor);
-
-    if (!result.valid) {
-      return socket.emit("move_rejected", {
-        reason: "ILLEGAL_MOVE",
-        message: result.reason || "Invalid move for your pieces"
-      });
-    }
-
-    // Move accepted — update state
-    player.timerValue = game.variantTime;
-    player.canMove = false;
-    player.lastMoveAt = Date.now();
-
-    const sequence = ++game.lastSequence;
-    const notation = formatCmnMove({
-      sequence,
-      color: playerColor,
-      fromSquare: result.from,
-      toSquare: result.to,
-      capturedPiece: result.captured,
-      promotionPiece: result.promotion
+    const result = gameService.acceptMove({
+      socketId: socket.id,
+      ...parsed.data
     });
-    const acceptedAt = Date.now();
-    const acceptedMove = {
-      from: result.from,
-      to: result.to,
-      piece: result.piece,
-      promotion: result.promotion,
-      captured: result.captured
+    if (!result.ok) {
+      socket.emit("move_rejected", {
+        reason: result.reason,
+        message: result.message,
+        clientMoveId: parsed.data.clientMoveId || null
+      });
+      return;
+    }
+
+    const moveEvent = {
+      clientMoveId: result.clientMoveId,
+      sequence: result.sequence,
+      notation: result.notation,
+      move: result.move,
+      fen: result.fen,
+      movedBy: result.color,
+      timers: result.timers,
+      ...(result.terminal ? { whiteCanMove: false, blackCanMove: false } : {})
     };
 
-    game.moveHistory.push({
-      sequence,
-      notation,
-      ...acceptedMove,
-      color: playerColor,
-      acceptedAt,
-      fenAfter: game.chess.fen(),
-      whiteCooldownMsAfter: game.players.white.timerValue,
-      blackCooldownMsAfter: game.players.black.timerValue
-    });
-
-    // King captured — game over
-    if (result.captured === "k" || result.captured === "K") {
-      game.status = "finished";
-
-      const finalMove = acceptedMove;
-
-      const finalTimers = {
-        white: game.players.white.timerValue,
-        black: game.players.black.timerValue
-      };
-
-      const finalFen = game.chess.fen();
-
-      io.to(gameId).emit("move_made", {
-        sequence,
-        notation,
-        move: finalMove,
-        fen: finalFen,
-        movedBy: playerColor,
-        timers: finalTimers,
-        whiteCanMove: false,
-        blackCanMove: false
-      });
-
-      io.to(gameId).emit("game_over", {
-        reason: "KING_CAPTURED",
-        winner: playerColor,
-        capturedPiece: result.captured,
-        capturedBy: result.piece,
-        sequence,
-        notation,
-        fen: finalFen,
-        move: finalMove,
-        timers: finalTimers
-      });
-
-      games.delete(gameId);
+    if (result.duplicate) {
+      socket.emit("move_made", moveEvent);
       return;
     }
 
-    // Normal move — broadcast
-    io.to(gameId).emit("move_made", {
-      sequence,
-      notation,
-      move: acceptedMove,
-      fen: game.chess.fen(),
-      movedBy: playerColor,
-      timers: {
-        white: game.players.white.timerValue,
-        black: game.players.black.timerValue
-      }
-    });
+    io.to(result.game.id).emit("move_made", moveEvent);
+
+    if (result.terminal) {
+      io.to(result.game.id).emit("game_over", {
+        reason: "KING_CAPTURED",
+        winner: result.color,
+        capturedPiece: result.move.captured,
+        capturedBy: result.move.piece,
+        clientMoveId: result.clientMoveId,
+        sequence: result.sequence,
+        notation: result.notation,
+        fen: result.fen,
+        move: result.move,
+        timers: result.timers
+      });
+
+      void gameService
+        .finalizeKingCapture(result.game.id, result.color)
+        .catch((error) =>
+          console.error(`Could not finalize game ${result.game.id}`, error)
+        );
+    }
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
-    removeWaitingPlayer(socket.id);
+    matchmakingService.leave(socket.id);
 
-    const activeMatch = findGameBySocketId(socket.id);
-    if (!activeMatch) return;
+    const game = gameService.findGameBySocketId(socket.id);
+    if (!game) return;
 
-    const { game, gameId } = activeMatch;
     const winner =
       game.players.white.socketId === socket.id ? "black" : "white";
-    const opponentSocketId =
-      winner === "white"
-        ? game.players.white.socketId
-        : game.players.black.socketId;
-
-    game.status = "finished";
-    io.sockets.sockets.get(opponentSocketId)?.leave(gameId);
+    const opponentSocketId = game.players[winner].socketId;
+    game.status = "finishing";
 
     io.to(opponentSocketId).emit("game_over", {
       reason: "opponent_disconnected",
@@ -364,8 +271,16 @@ function registerHandlers(io, socket) {
       fen: game.chess.fen()
     });
 
-    games.delete(gameId);
+    void gameService
+      .forfeitDisconnectedPlayer(game.id, winner)
+      .catch((error) =>
+        console.error(`Could not finalize disconnected game ${game.id}`, error)
+      );
   });
 }
 
-module.exports = { startTimerTick, registerHandlers };
+module.exports = {
+  registerGameServiceEvents,
+  registerHandlers,
+  startTimerTick
+};

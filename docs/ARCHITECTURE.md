@@ -1,48 +1,99 @@
 # Architecture
 
-Checkless is built with a simple, modular architecture separating the frontend client from the backend game server. 
-It uses a modern tech stack centered around React, Express, Socket.io, and Prisma.
+Checkless separates realtime transport, authoritative game logic, ephemeral
+state, and durable persistence. The React client renders server decisions; it
+never decides move legality, player color, sequence, captures, or results.
 
-## Overview
+## System overview
 
 ```mermaid
-graph TD
-    Client[React + Vite Frontend] <-->|Socket.io| Server[Express + Node.js Backend]
-    Server <-->|Prisma ORM| Database[(Neon PostgreSQL)]
+flowchart LR
+  Client[React + Vite] <-->|Socket.IO| Transport[WebSocket handlers]
+  Transport --> Matchmaking[Matchmaking service]
+  Transport --> LiveGames[Live game service]
+  LiveGames --> Engine[Simultaneous chess engine]
+  LiveGames --> Buffer[Per-game move buffer]
+  Buffer --> Persistence[Game persistence service]
+  Persistence -->|Prisma| Database[(PostgreSQL)]
 ```
 
-### 1. Frontend (`/frontend`)
-The frontend is a pure Single Page Application (SPA) built with:
-- **React 19**: UI component model.
-- **Vite**: Ultra-fast build tool and development server.
-- **TailwindCSS v3**: Utility-first CSS for styling, using a custom "espresso and lime" design system.
-- **React Router**: Client-side routing.
-- **Socket.io-client**: Real-time duplex communication with the game server.
-- **Chessground**: Premium, customizable chess board UI.
+## Backend module boundaries
 
-The frontend is completely stateless regarding the game rules. It merely sends moves (and premoves) to the server and faithfully renders the board state and timers provided by the server.
+- `src/websocket`: validates socket payloads and publishes service results.
+- `src/services/matchmaking.js`: owns the ephemeral casual queue.
+- `src/services/live-game.js`: owns active engines, timers, sequence allocation,
+  idempotency, and terminal lifecycle coordination.
+- `src/services/move-write-buffer.js`: batches and serializes move writes.
+- `src/services/game-persistence.js`: owns all Prisma game mutations and
+  transaction invariants.
+- `src/middlewares`: authenticates requests and attaches verified local users.
+- `src/engine`: validates and applies Checkless rules without database or socket
+  dependencies.
+- `src/utils`: contains pure mappings and CMN formatting/parsing.
+- `prisma/schema`: defines durable models and constraints.
 
-### 2. Backend (`/backend`)
-The backend is a Node.js server handling game logic and matchmaking:
-- **Express**: Lightweight HTTP framework (primarily for health checks and API routes).
-- **Socket.io**: Powers the realtime matchmaking and live game updates.
-- **Prisma**: Type-safe ORM for database interactions.
-- **Neon**: Serverless PostgreSQL database.
+Routes will use the same services when public history and replay APIs are
+implemented. They must not duplicate persistence logic.
 
-#### Core Modules
-- **`src/index.js`**: The entry point. Initializes Express and Socket.io, binds them to a single HTTP server, and loads CORS configuration.
-- **`src/socket/handlers.js`**: The central nervous system. Manages the connection lifecycle, matchmaking queues, game loop, and the global tick timer (which fires every 100ms).
-- **`src/engine/chess.js`**: The authoritative game engine. `SimultaneousChess` class manages board state (FEN), timers, turn control, and game-over conditions (King Capture).
-- **`src/utils/validate.js`**: Pure functions for chess move validation. Ensures pieces move correctly and prevents cheating.
+## Durable and ephemeral state
 
-## State Management
+PostgreSQL stores started games, participant snapshots, accepted moves, final
+results, and the highest durable sequence. Memory stores active board objects,
+cooldowns, socket membership, queue entries, idempotency results, and pending
+move batches.
 
-1. **Matchmaking**: Players request a game via `find_game` with a specific variant (1s, 3s, or 5s). The server queues them. When two players match, a new `SimultaneousChess` instance is created and stored in memory.
-2. **Game Loop**: A global `setInterval` running every 100ms ticks down active timers for all games in memory. When a timer reaches 0, the player can move.
-3. **Move Resolution**: When a player moves, the server validates it. If valid, the move is applied, the board state is updated, the player's timer resets to the variant max, and all clients in the room receive the `move_made` event.
-4. **Win Condition**: If a King is captured during a move, the game ends immediately (`game_over` event with reason `KING_CAPTURED`).
+A `Game` and its two `GameParticipant` rows are created atomically before
+`game_start` is emitted. The database-generated game ID is also the Socket.IO
+room ID.
 
-## Future Expansion
-The architecture is designed to support:
-- **Ranked Matchmaking**: Adding user accounts, Elo ratings, and match history via the existing Prisma schema.
-- **Private Friend Rooms**: Allowing players to create direct lobby codes to share with friends.
+## Accepted-move pipeline
+
+For every accepted move, the live game service:
+
+1. Resolves color from verified game membership.
+2. Detects a repeated `clientMoveId` before applying the engine command.
+3. Validates and applies the move synchronously.
+4. Allocates the next game-wide sequence.
+5. Generates server-owned CMN and the resulting FEN.
+6. Adds the structured record to the in-memory buffer.
+7. Emits `move_made` immediately without waiting for PostgreSQL.
+
+The client supplies only `gameId`, `clientMoveId`, and coordinates. See
+`docs/CMN.md` for the notation contract.
+
+## Batched persistence
+
+Each game has one `MoveWriteBuffer`. It flushes when either limit is reached:
+
+- 10 pending moves, configurable with `MOVE_BATCH_SIZE`;
+- 5 seconds after the first pending move, configurable with
+  `MOVE_FLUSH_INTERVAL_MS`.
+
+Only one batch for a game can write at a time. A transaction inserts the
+contiguous `GameMove` rows and conditionally advances `Game.lastSequence` from
+the expected previous value to the batch's final sequence. The transaction
+rolls back if either operation fails.
+
+New moves can enter memory while an earlier batch is being written. They enter
+the next serialized batch and cannot overtake the earlier moves.
+
+## Terminal events and failures
+
+King capture, abort, disconnect forfeit, and graceful shutdown stop new moves
+and force the final buffer to flush. Game result updates run only after the
+final durable sequence is confirmed.
+
+If a batch fails, its moves are retained in memory, later writes are stopped,
+players receive `SERVER_INTERRUPTED`, and the durable game is marked
+`INTERRUPTED`. The server never skips a failed sequence and stores a later one.
+
+At startup, database games still marked `ACTIVE` are changed to `INTERRUPTED`
+with `SERVER_INTERRUPTED`. V1 does not recover a live engine across processes.
+At most the current unflushed batch can be absent after an ungraceful crash.
+
+## Scaling boundary
+
+This design supports one backend process. Multiple instances require sticky
+game routing or an external owner for queues, active engines, idempotency maps,
+and timers. PostgreSQL remains the history store; it must not be used as the
+100 ms timer or presence system.

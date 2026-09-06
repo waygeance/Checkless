@@ -30,6 +30,8 @@ const promotionSchema = z.enum(["q", "r", "b", "n"]).optional();
  */
 const makeMovePayloadSchema = z.object({
   gameId: z.string().min(1, "gameId is required"),
+  // Optional during the V1 client rollout. New clients always send a UUID.
+  clientMoveId: z.string().uuid("clientMoveId must be a UUID").optional(),
   move: z.object({
     from: squareSchema,
     to: squareSchema,
@@ -72,7 +74,7 @@ function validateSocketPayload(schema, payload) {
   const result = schema.safeParse(payload);
   if (result.success) return { data: result.data };
 
-  const message = result.error.errors
+  const message = result.error.issues
     .map((e) => `${e.path.join(".")}: ${e.message}`)
     .join("; ");
 

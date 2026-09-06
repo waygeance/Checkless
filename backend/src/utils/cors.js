@@ -20,10 +20,7 @@ function normalizeOrigin(origin) {
 }
 
 function buildAllowedOrigins(envValue) {
-  return (envValue || "")
-    .split(",")
-    .map(normalizeOrigin)
-    .filter(Boolean);
+  return (envValue || "").split(",").map(normalizeOrigin).filter(Boolean);
 }
 
 function isAllowedOrigin(origin, allowedOrigins) {
@@ -34,9 +31,7 @@ function isAllowedOrigin(origin, allowedOrigins) {
   if (allowedOrigins.includes(normalized)) return true;
 
   // Allow any *.vercel.app deploy when at least one vercel origin is configured
-  const hasVercel = allowedOrigins.some((o) =>
-    /\.vercel\.app$/i.test(o)
-  );
+  const hasVercel = allowedOrigins.some((o) => /\.vercel\.app$/i.test(o));
 
   if (hasVercel && /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(normalized)) {
     return true;

@@ -68,7 +68,7 @@ model GameMove {
   capturedPiece        String?
   promotionPiece       String?
   fenAfter             String
-  /// Milliseconds elapsed on this player's cooldown timer before this move was submitted.
+  /// Milliseconds elapsed from Game.startedAt until this move was accepted.
   elapsedMs            Int
   whiteCooldownMsAfter Int
   blackCooldownMsAfter Int

@@ -23,8 +23,15 @@ const { PrismaClient } = require("@prisma/client");
 
 const { createAppClerkClient } = require("./middlewares/auth");
 const { createSocketAuthMiddleware } = require("./middlewares/socket-auth");
+const { GamePersistenceService } = require("./services/game-persistence");
+const { LiveGameService } = require("./services/live-game");
+const { MatchmakingService } = require("./services/matchmaking");
 const { buildAllowedOrigins, isAllowedOrigin } = require("./utils/cors");
-const { startTimerTick, registerHandlers } = require("./websocket/handlers");
+const {
+  registerGameServiceEvents,
+  registerHandlers,
+  startTimerTick
+} = require("./websocket/handlers");
 const healthRouter = require("./routes/health");
 
 // ── Core Instances ───────────────────────────────────
@@ -33,6 +40,13 @@ const app = express();
 const server = http.createServer(app);
 const prisma = new PrismaClient();
 const clerkClient = createAppClerkClient();
+const gamePersistenceService = new GamePersistenceService(prisma);
+const gameService = new LiveGameService({
+  persistence: gamePersistenceService,
+  moveBatchSize: Number(process.env.MOVE_BATCH_SIZE) || 10,
+  moveFlushIntervalMs: Number(process.env.MOVE_FLUSH_INTERVAL_MS) || 5000
+});
+const matchmakingService = new MatchmakingService(gameService);
 
 const PORT = Number(process.env.PORT) || 8081;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -48,7 +62,9 @@ const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
       const allowed =
-        allowedOrigins.length === 0 ? true : isAllowedOrigin(origin, allowedOrigins);
+        allowedOrigins.length === 0
+          ? true
+          : isAllowedOrigin(origin, allowedOrigins);
 
       if (!allowed) {
         console.warn(
@@ -87,16 +103,63 @@ app.use("/", healthRouter);
 
 // ── WebSocket ────────────────────────────────────────
 
-io.on("connection", (socket) => registerHandlers(io, socket));
-startTimerTick(io);
+registerGameServiceEvents(io, gameService);
+io.on("connection", (socket) =>
+  registerHandlers(io, socket, { gameService, matchmakingService })
+);
+startTimerTick(io, gameService);
 
 // ── Start ────────────────────────────────────────────
 
-server.listen(PORT, HOST, () => {
-  console.log(`✓ Checkless server running on ${HOST}:${PORT}`);
-});
+async function startServer() {
+  const recovered = await gamePersistenceService.recoverInterruptedGames();
+  if (recovered.count > 0) {
+    console.warn(
+      `Marked ${recovered.count} unfinished game(s) as server-interrupted`
+    );
+  }
 
-process.on("SIGINT", async () => {
+  await new Promise((resolve, reject) => {
+    const handleError = (error) => {
+      server.off("listening", handleListening);
+      reject(error);
+    };
+    const handleListening = () => {
+      server.off("error", handleError);
+      resolve();
+    };
+
+    server.once("error", handleError);
+    server.once("listening", handleListening);
+    server.listen(PORT, HOST);
+  });
+
+  console.log(`✓ Checkless server running on ${HOST}:${PORT}`);
+}
+
+let isShuttingDown = false;
+
+async function shutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`Received ${signal}; flushing active games...`);
+
+  try {
+    await gameService.shutdown();
+    await new Promise((resolve) => io.close(resolve));
+    await prisma.$disconnect();
+    process.exit(0);
+  } catch (error) {
+    console.error("Graceful shutdown failed", error);
+    process.exit(1);
+  }
+}
+
+process.on("SIGINT", () => void shutdown("SIGINT"));
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+
+startServer().catch(async (error) => {
+  console.error("Could not start Checkless server", error);
   await prisma.$disconnect();
-  process.exit(0);
+  process.exit(1);
 });

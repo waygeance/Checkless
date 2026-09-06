@@ -77,6 +77,10 @@ const formatRules = [
 const LATENCY_SAMPLE_INTERVAL = 4000;
 const LATENCY_LOG_INTERVAL = 15000;
 
+function createClientMoveId() {
+  return window.crypto.randomUUID();
+}
+
 function getPingAppearance(pingMs) {
   if (pingMs === null) {
     return {
@@ -388,6 +392,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
           if (canNowMove && currentPremove && socketRef.current) {
             socketRef.current.emit("make_move", {
               gameId: prev.gameId,
+              clientMoveId: createClientMoveId(),
               move: { from: currentPremove.from, to: currentPremove.to }
             });
             return null;
@@ -575,6 +580,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
 
     socket.emit("make_move", {
       gameId: gameState.gameId,
+      clientMoveId: createClientMoveId(),
       move: promotion ? { from, to, promotion } : { from, to }
     });
   };

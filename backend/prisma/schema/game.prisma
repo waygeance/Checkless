@@ -58,6 +58,8 @@ model GameMove {
   participantId        String
   sequence             Int
   clientMoveId         String?
+  /// Server-generated Checkless Move Notation v1 token. Structured fields remain authoritative.
+  notation             String
   /// Derived from GameParticipant.color — stored here to avoid a join on hot read paths.
   color                ChessColor
   fromSquare           String

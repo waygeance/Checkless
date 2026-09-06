@@ -6,6 +6,7 @@
  */
 
 const { SimultaneousChess } = require("../engine/chess");
+const { formatCmnMove } = require("../utils/cmn");
 const {
   makeMovePayloadSchema,
   findGamePayloadSchema,
@@ -46,6 +47,7 @@ function createGame(player1, player2, variant) {
     },
     chess: new SimultaneousChess(),
     moveHistory: [],
+    lastSequence: 0,
     status: "active"
   };
 }
@@ -212,7 +214,10 @@ function registerHandlers(io, socket) {
   socket.on("make_move", (payload) => {
     const parsed = validateSocketPayload(makeMovePayloadSchema, payload);
     if (parsed.error) {
-      return socket.emit("move_rejected", { reason: "INVALID_PAYLOAD", message: parsed.error });
+      return socket.emit("move_rejected", {
+        reason: "INVALID_PAYLOAD",
+        message: parsed.error
+      });
     }
     const { gameId, move } = parsed.data;
     const game = games.get(gameId);
@@ -252,23 +257,40 @@ function registerHandlers(io, socket) {
     player.canMove = false;
     player.lastMoveAt = Date.now();
 
-    game.moveHistory.push({
-      move: result.from + result.to,
+    const sequence = ++game.lastSequence;
+    const notation = formatCmnMove({
+      sequence,
       color: playerColor,
-      timestamp: Date.now()
+      fromSquare: result.from,
+      toSquare: result.to,
+      capturedPiece: result.captured,
+      promotionPiece: result.promotion
+    });
+    const acceptedAt = Date.now();
+    const acceptedMove = {
+      from: result.from,
+      to: result.to,
+      piece: result.piece,
+      promotion: result.promotion,
+      captured: result.captured
+    };
+
+    game.moveHistory.push({
+      sequence,
+      notation,
+      ...acceptedMove,
+      color: playerColor,
+      acceptedAt,
+      fenAfter: game.chess.fen(),
+      whiteCooldownMsAfter: game.players.white.timerValue,
+      blackCooldownMsAfter: game.players.black.timerValue
     });
 
     // King captured — game over
     if (result.captured === "k" || result.captured === "K") {
       game.status = "finished";
 
-      const finalMove = {
-        from: result.from,
-        to: result.to,
-        piece: result.piece,
-        promotion: result.promotion,
-        captured: result.captured
-      };
+      const finalMove = acceptedMove;
 
       const finalTimers = {
         white: game.players.white.timerValue,
@@ -278,6 +300,8 @@ function registerHandlers(io, socket) {
       const finalFen = game.chess.fen();
 
       io.to(gameId).emit("move_made", {
+        sequence,
+        notation,
         move: finalMove,
         fen: finalFen,
         movedBy: playerColor,
@@ -291,6 +315,8 @@ function registerHandlers(io, socket) {
         winner: playerColor,
         capturedPiece: result.captured,
         capturedBy: result.piece,
+        sequence,
+        notation,
         fen: finalFen,
         move: finalMove,
         timers: finalTimers
@@ -302,13 +328,9 @@ function registerHandlers(io, socket) {
 
     // Normal move — broadcast
     io.to(gameId).emit("move_made", {
-      move: {
-        from: result.from,
-        to: result.to,
-        piece: result.piece,
-        promotion: result.promotion,
-        captured: result.captured
-      },
+      sequence,
+      notation,
+      move: acceptedMove,
       fen: game.chess.fen(),
       movedBy: playerColor,
       timers: {

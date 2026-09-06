@@ -5,34 +5,46 @@ The Checkless backend communicates with the frontend almost exclusively over Soc
 ## Client-to-Server Events
 
 ### `find_game`
+
 Requests to join the matchmaking queue.
+
 - **Payload**: `{ variant: string }` (e.g. "1s", "3s", "5s")
 - **Behavior**: The server attempts to find another player in the queue for the requested variant. If found, a game starts. If not, the player waits in the queue.
 
 ### `abort_match`
+
 Requests to cancel matchmaking or concede an active game.
+
 - **Payload**: `{ gameId?: string }`
 - **Behavior**: If in queue, removes the player. If in a game, ends the game and alerts the opponent.
 
 ### `make_move`
+
 Attempts to execute a chess move.
+
 - **Payload**: `{ gameId: string, move: { from: string, to: string, promotion?: string } }`
 - **Behavior**: The server validates the move. If legal and the player's timer is at 0, the move is executed.
 
 ### `latency_ping`
+
 Requests a ping timestamp to calculate network latency.
+
 - **Payload**: `{ clientAt: number }`
 - **Response Callback**: `({ clientAt: number, serverAt: number })`
 
 ## Server-to-Client Events
 
 ### `waiting`
+
 Sent when a player joins the queue and is waiting for an opponent.
+
 - **Payload**: `{ message: string }`
 
 ### `game_start`
+
 Sent when a match is found and the game begins.
-- **Payload**: 
+
+- **Payload**:
   ```json
   {
     "gameId": "string",
@@ -43,8 +55,10 @@ Sent when a match is found and the game begins.
   ```
 
 ### `timer_update`
+
 Sent every 100ms by the global game tick to sync client timers.
-- **Payload**: 
+
+- **Payload**:
   ```json
   {
     "gameId": "string",
@@ -56,24 +70,38 @@ Sent every 100ms by the global game tick to sync client timers.
   ```
 
 ### `move_made`
+
 Broadcasted to all players in a game when a valid move is executed.
-- **Payload**: 
+
+- **Payload**:
   ```json
   {
-    "move": { "from": "string", "to": "string", "captured": "string | undefined" },
+    "sequence": "number",
+    "notation": "string (CMN v1)",
+    "move": {
+      "from": "string",
+      "to": "string",
+      "captured": "string | undefined"
+    },
     "fen": "string",
     "timers": { "white": "number", "black": "number" },
     "whiteCanMove": "boolean",
     "blackCanMove": "boolean"
   }
   ```
+- **Ordering**: `sequence` is the authoritative global move order. `notation`
+  is the server-generated readable form, for example `(4)B:f6xg4`.
 
 ### `move_rejected`
+
 Sent directly to the offending player if they attempt an invalid move or move before their timer is ready.
+
 - **Payload**: `{ reason: string }`
 
 ### `game_over`
+
 Broadcasted when a win condition is met, or a player disconnects/aborts.
+
 - **Payload**:
   ```json
   {
@@ -81,12 +109,19 @@ Broadcasted when a win condition is met, or a player disconnects/aborts.
     "winner": "white" | "black" | null,
     "capturedPiece": "string | undefined",
     "capturedBy": "string | undefined",
+    "sequence": "number | undefined",
+    "notation": "string (CMN v1) | undefined",
     "move": { "from": "string", "to": "string" },
     "fen": "string",
     "timers": { "white": "number", "black": "number" }
   }
   ```
 
+`sequence` and `notation` are present when `reason` is `KING_CAPTURED`; other
+terminal reasons are not caused by an accepted move.
+
 ### `match_aborted`
+
 Sent when a match is successfully aborted, returning the player to the lobby.
+
 - **Payload**: `{ message: string }`

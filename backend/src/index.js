@@ -33,6 +33,7 @@ const {
   startTimerTick
 } = require("./websocket/handlers");
 const healthRouter = require("./routes/health");
+const { createGuestRouter } = require("./routes/guest");
 
 // ── Core Instances ───────────────────────────────────
 
@@ -94,6 +95,7 @@ app.use(express.json());
 // ── Routes ───────────────────────────────────────────
 
 app.use("/", healthRouter);
+app.use("/api/guest", createGuestRouter(prisma));
 
 // Future routes go here:
 // app.use("/api/users",       require("./routes/users"));

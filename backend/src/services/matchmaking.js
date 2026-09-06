@@ -10,7 +10,7 @@ class MatchmakingService {
     this.cancelledMatchingSocketIds = new Set();
   }
 
-  async join({ socketId, user, variant }) {
+  async join({ socketId, user, identity, variant }) {
     if (
       this.gameService.findGameBySocketId(socketId) ||
       this.gameService.findGameByUserId(user.id)
@@ -38,12 +38,12 @@ class MatchmakingService {
     );
 
     if (waitingIndex === -1) {
-      this.waitingPlayers.push({ socketId, user, variant });
+      this.waitingPlayers.push({ socketId, user, identity, variant });
       return { status: "waiting" };
     }
 
     const [whitePlayer] = this.waitingPlayers.splice(waitingIndex, 1);
-    const blackPlayer = { socketId, user, variant };
+    const blackPlayer = { socketId, user, identity, variant };
     this.matchingSocketIds.add(whitePlayer.socketId);
     this.matchingSocketIds.add(blackPlayer.socketId);
 

@@ -27,6 +27,8 @@ class LiveGameService extends EventEmitter {
     const storedGame = await this.persistence.createCasualGame({
       whiteUser: whitePlayer.user,
       blackUser: blackPlayer.user,
+      whiteIdentity: whitePlayer.identity,
+      blackIdentity: blackPlayer.identity,
       variant,
       initialFen: chess.fen()
     });

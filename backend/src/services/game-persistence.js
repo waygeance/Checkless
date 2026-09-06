@@ -17,14 +17,24 @@ class GamePersistenceService {
     this.prisma = prisma;
   }
 
-  async createCasualGame({ whiteUser, blackUser, variant, initialFen }) {
+  async createCasualGame({
+    whiteUser,
+    blackUser,
+    whiteIdentity,
+    blackIdentity,
+    variant,
+    initialFen
+  }) {
     if (!whiteUser?.id || !blackUser?.id) {
       throw new GamePersistenceError(
         "PLAYER_IDENTITY_REQUIRED",
         "Both matched players must have verified local identities"
       );
     }
-    if (whiteUser.id === blackUser.id) {
+    if (
+      (whiteIdentity?.id && whiteIdentity.id === blackIdentity?.id) ||
+      whiteUser.id === blackUser.id
+    ) {
       throw new GamePersistenceError(
         "SELF_MATCH_FORBIDDEN",
         "A user cannot be matched against another socket from the same account"
@@ -40,8 +50,8 @@ class GamePersistenceService {
         initialFen,
         participants: {
           create: [
-            this.createParticipantData(whiteUser, "WHITE"),
-            this.createParticipantData(blackUser, "BLACK")
+            this.createParticipantData(whiteUser, whiteIdentity, "WHITE"),
+            this.createParticipantData(blackUser, blackIdentity, "BLACK")
           ]
         }
       },
@@ -49,7 +59,15 @@ class GamePersistenceService {
     });
   }
 
-  createParticipantData(user, color) {
+  createParticipantData(user, identity, color) {
+    if (identity?.type === "guest") {
+      return {
+        guestIdentityId: identity.id,
+        color,
+        usernameSnapshot: identity.guest.publicAlias,
+        displayNameSnapshot: identity.guest.publicAlias
+      };
+    }
     return {
       userId: user.id,
       color,

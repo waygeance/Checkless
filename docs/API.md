@@ -4,6 +4,13 @@ The Checkless backend communicates with the frontend almost exclusively over Soc
 
 ## Client-to-Server Events
 
+## Guest identity
+
+`POST /api/guest` creates a durable anonymous identity and returns `{ token,
+guestId, publicAlias }`. Store only the opaque token in the browser and send it
+as Socket.IO `auth.token`; the server verifies its signature and token version
+before allowing matchmaking or reconnect.
+
 ### `find_game`
 
 Requests to join the matchmaking queue.

@@ -1,4 +1,5 @@
 const { syncClerkUser } = require("../services/user");
+const { resolveGuestIdentity } = require("../services/guest-identity");
 
 function createSocketAuthMiddleware({
   prisma,
@@ -9,8 +10,21 @@ function createSocketAuthMiddleware({
     try {
       const token = socket.handshake.auth?.token;
 
-      if (typeof token !== "string" || !token) {
+      if (typeof token !== "string" || !token)
         return next(new Error("AUTH_REQUIRED"));
+
+      const guest = await resolveGuestIdentity(prisma, token);
+      if (guest) {
+        socket.data.auth = { guestIdentityId: guest.id };
+        socket.data.identity = { type: "guest", id: guest.id, guest };
+        socket.data.user = {
+          id: guest.id,
+          username: guest.publicAlias,
+          displayName: guest.publicAlias,
+          avatarUrl: null,
+          kind: "GUEST"
+        };
+        return next();
       }
 
       const origin = socket.handshake.headers.origin;
@@ -45,6 +59,7 @@ function createSocketAuthMiddleware({
         sessionId: auth.sessionId,
         userId: user.id
       };
+      socket.data.identity = { type: "human", id: user.id, user };
       socket.data.user = user;
 
       return next();

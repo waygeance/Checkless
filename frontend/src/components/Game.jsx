@@ -27,6 +27,17 @@ const VARIANT_TIMES = {
 
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL?.trim() || "http://localhost:8081";
+const GUEST_TOKEN_KEY = "checkless.guestToken";
+
+async function getGuestToken() {
+  const existing = window.localStorage.getItem(GUEST_TOKEN_KEY);
+  if (existing) return existing;
+  const response = await fetch(`${SOCKET_URL}/api/guest`, { method: "POST" });
+  if (!response.ok) throw new Error("GUEST_TOKEN_UNAVAILABLE");
+  const data = await response.json();
+  window.localStorage.setItem(GUEST_TOKEN_KEY, data.token);
+  return data.token;
+}
 
 const emptyVictoryState = () => ({
   show: false,
@@ -186,6 +197,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
     const newSocket = io(SOCKET_URL, {
       auth: (callback) => {
         getToken()
+          .then((token) => (token ? token : getGuestToken()))
           .then((token) => callback({ token }))
           .catch(() => callback({ token: null }));
       },

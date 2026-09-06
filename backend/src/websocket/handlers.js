@@ -94,6 +94,10 @@ function registerHandlers(io, socket, { gameService, matchmakingService }) {
       const match = await matchmakingService.join({
         socketId: socket.id,
         user: socket.data.user,
+        identity: socket.data.identity || {
+          type: "human",
+          id: socket.data.user.id
+        },
         variant: parsed.data.variant
       });
 

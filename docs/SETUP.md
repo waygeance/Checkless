@@ -42,6 +42,7 @@ HOST=0.0.0.0
 CORS_ORIGIN="http://localhost:5173"
 MOVE_BATCH_SIZE=10
 MOVE_FLUSH_INTERVAL_MS=5000
+GUEST_TOKEN_SECRET="generate-a-random-32-byte-secret"
 
 # Frontend Configuration
 VITE_SOCKET_URL="http://localhost:8081"
@@ -57,6 +58,10 @@ DATABASE_URL="postgresql://user:password@host/neondb?sslmode=require"
 Get the Clerk keys from the API Keys page of the Clerk Dashboard. The
 publishable key is used by the Vite frontend. `CLERK_SECRET_KEY` is backend-only
 and must never use a `VITE_` prefix or be committed.
+
+`GUEST_TOKEN_SECRET` signs anonymous guest identities. Keep it backend-only and
+use a unique random value in every environment; rotating it invalidates guest
+tokens and requires guests to receive a new identity.
 
 Enable usernames for the Clerk development instance so newly created accounts
 can use the same searchable username in Checkless. If a test user does not yet

@@ -578,7 +578,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
     if (autoStartQueuedRef.current) return;
     if (!socket || connectionStatus !== "connected" || gameState) return;
 
-    socket.emit("find_game", { variant });
+    socket.emit("find_game", { mode: "CASUAL", variant });
     autoStartQueuedRef.current = true;
   }, [autoStart, connectionStatus, gameState, socket, variant]);
 
@@ -587,7 +587,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
     setMessage("");
   };
 
-  const handleStartCasual = (nextVariant) => {
+  const handleStartGame = (mode = "CASUAL", nextVariant = variant) => {
     setVariant(nextVariant);
 
     if (!socket || connectionStatus !== "connected") {
@@ -597,15 +597,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
 
     autoStartQueuedRef.current = true;
     setMessage("");
-    socket.emit("find_game", { variant: nextVariant });
-  };
-
-  const handleFriendAction = (action) => {
-    setMessage(
-      action === "create"
-        ? "Private room creation is the next feature on deck."
-        : "Private room joining will land with friend match support."
-    );
+    socket.emit("find_game", { mode, variant: nextVariant });
   };
 
   const handleAbortMatch = () => {
@@ -659,7 +651,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
   const transportLabel = getTransportLabel(transportName);
 
   return (
-    <div className="min-h-screen bg-espresso text-cream">
+    <div className="w-full text-cream">
       {showCelebrationConfetti && (
         <canvas
           id="confetti"
@@ -668,7 +660,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
         />
       )}
 
-      <main className="pb-8">
+      <div className="w-full">
         <div className="mx-auto max-w-[1400px]">
           {connectionStatus === "connecting" && (
             <div className="flex min-h-[65vh] items-center justify-center">
@@ -715,95 +707,13 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
           )}
 
           {connectionStatus === "connected" && !gameState && (
-            <div className="space-y-10">
-              <section className="text-center">
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-mocha/80 px-5 py-2 shadow-tactile backdrop-blur-sm">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-lime" />
-                  </span>
-                  <span className="font-mono text-[11px] uppercase tracking-[0.24em] text-cream-muted">
-                    Match Hub Online
-                  </span>
-                </div>
-                <h1 className="mt-6 font-display text-5xl font-bold tracking-tight text-cream sm:text-6xl">
-                  Step Into The Arena
-                </h1>
-                <p className="mx-auto mt-4 max-w-3xl text-base leading-relaxed text-cream-muted sm:text-lg">
-                  The new designer theme now wraps the entire play flow, from
-                  queue selection to live boards. Casual matches are ready,
-                  ranked is staged, and friend rooms are next.
-                </p>
-              </section>
-
-              <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
-                <SurfaceCard title="Live Format" eyebrow="Ruleset">
-                  <div className="space-y-5">
-                    {formatRules.map((rule) => {
-                      const Icon = rule.icon;
-                      return (
-                        <div key={rule.text} className="flex items-start gap-3">
-                          <Icon className="mt-0.5 h-4 w-4 text-lime" />
-                          <p className="text-sm leading-relaxed text-cream-muted">
-                            {rule.text}
-                          </p>
-                        </div>
-                      );
-                    })}
-                    <div className="rounded-[1.4rem] border border-white/10 bg-espresso/70 p-4 shadow-inner">
-                      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-cream-muted">
-                        Selected Cooldown
-                      </div>
-                      <div className="mt-2 font-display text-4xl font-bold text-lime">
-                        {variant.toUpperCase()}
-                      </div>
-                      <p className="mt-2 text-sm text-cream-muted">
-                        Use the center panel to queue whenever you are ready.
-                      </p>
-                    </div>
-                  </div>
-                </SurfaceCard>
-
-                <PlayModeGrid
-                  connectionReady={connectionStatus === "connected"}
-                  selectedVariant={variant}
-                  onSelectVariant={handleSelectVariant}
-                  onStartCasual={handleStartCasual}
-                  onFriendAction={handleFriendAction}
-                />
-
-                <SurfaceCard title="What Ships Next" eyebrow="Roadmap">
-                  <div className="space-y-4 text-sm leading-relaxed text-cream-muted">
-                    <div className="rounded-[1.4rem] border border-white/10 bg-espresso/70 p-4 shadow-inner">
-                      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-cream-muted">
-                        Ranked
-                      </div>
-                      <p className="mt-2">
-                        Account-backed identity, matchmaking history, and
-                        ratings.
-                      </p>
-                    </div>
-                    <div className="rounded-[1.4rem] border border-white/10 bg-espresso/70 p-4 shadow-inner">
-                      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-cream-muted">
-                        Friend Rooms
-                      </div>
-                      <p className="mt-2">
-                        Create or join private lobbies for direct rematches.
-                      </p>
-                    </div>
-                    <div className="rounded-[1.4rem] border border-white/10 bg-espresso/70 p-4 shadow-inner">
-                      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-cream-muted">
-                        Polish
-                      </div>
-                      <p className="mt-2">
-                        More board themes, richer match telemetry, and tighter
-                        lobby flows.
-                      </p>
-                    </div>
-                  </div>
-                </SurfaceCard>
-              </div>
-            </div>
+            <PlayModeGrid
+              connectionReady={connectionStatus === "connected"}
+              selectedVariant={variant}
+              onSelectVariant={handleSelectVariant}
+              onStartGame={handleStartGame}
+              pingMs={pingMs}
+            />
           )}
 
           {connectionStatus === "waiting" && (
@@ -1041,7 +951,7 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
             />
           )}
         </div>
-      </main>
+      </div>
       <OpponentDisconnectToast
         data={disconnectNotice}
         onExpired={() => setDisconnectNotice(null)}

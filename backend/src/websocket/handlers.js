@@ -64,6 +64,69 @@ function registerGameServiceEvents(io, gameService) {
   });
 }
 
+/**
+ * Authoritative shared match-publication path.
+ * Dispatches game_start, room joins, and pre-start cancellation aborts
+ * for both immediate matches and periodic expansion queue matches.
+ */
+async function publishMatch(io, gameService, match) {
+  if (match.status === "error") {
+    console.error("Could not create a persisted game", match.error);
+    const errorPayload = {
+      reason: match.error?.code || "GAME_CREATION_FAILED",
+      message: "The match could not be started. Please try again."
+    };
+    if (match.whitePlayer?.socketId) {
+      io.to(match.whitePlayer.socketId).emit("matchmaking_error", errorPayload);
+    }
+    if (match.blackPlayer?.socketId) {
+      io.to(match.blackPlayer.socketId).emit("matchmaking_error", errorPayload);
+    }
+    return;
+  }
+
+  if (match.status === "cancelled") {
+    await gameService.abortGame(match.game.id);
+    return;
+  }
+
+  if (match.status !== "matched") return;
+
+  const whiteSocket = io.sockets.sockets.get(match.whitePlayer.socketId);
+  const blackSocket = io.sockets.sockets.get(match.blackPlayer.socketId);
+
+  if (!whiteSocket || !blackSocket) {
+    await gameService.abortGame(match.game.id);
+    const connectedSocket = whiteSocket || blackSocket;
+    connectedSocket?.emit("matchmaking_error", {
+      reason: "OPPONENT_DISCONNECTED",
+      message: "Your opponent disconnected before the game started"
+    });
+    return;
+  }
+
+  whiteSocket.join(match.game.id);
+  blackSocket.join(match.game.id);
+
+  const sharedStart = {
+    gameId: match.game.id,
+    variant: match.game.variant,
+    mode: match.game.mode,
+    rated: match.game.rated,
+    fen: match.game.chess.fen()
+  };
+  whiteSocket.emit("game_start", { ...sharedStart, color: "white" });
+  blackSocket.emit("game_start", { ...sharedStart, color: "black" });
+}
+
+function registerMatchmakingEvents(io, matchmakingService, gameService) {
+  matchmakingService.on("match", (match) => {
+    void publishMatch(io, gameService, match).catch((error) =>
+      console.error("Failed to publish match", error)
+    );
+  });
+}
+
 function registerHandlers(
   io,
   socket,
@@ -170,53 +233,8 @@ function registerHandlers(
         });
         return;
       }
-      if (match.status === "error") {
-        console.error("Could not create a persisted game", match.error);
-        const errorPayload = {
-          reason: match.error.code || "GAME_CREATION_FAILED",
-          message: "The match could not be started. Please try again."
-        };
-        io.to(match.whitePlayer.socketId).emit(
-          "matchmaking_error",
-          errorPayload
-        );
-        io.to(match.blackPlayer.socketId).emit(
-          "matchmaking_error",
-          errorPayload
-        );
-        return;
-      }
-      if (match.status === "cancelled") {
-        await gameService.abortGame(match.game.id);
-        return;
-      }
-      if (match.status !== "matched") return;
-
-      const whiteSocket = io.sockets.sockets.get(match.whitePlayer.socketId);
-      const blackSocket = io.sockets.sockets.get(match.blackPlayer.socketId);
-
-      if (!whiteSocket || !blackSocket) {
-        await gameService.abortGame(match.game.id);
-        const connectedSocket = whiteSocket || blackSocket;
-        connectedSocket?.emit("matchmaking_error", {
-          reason: "OPPONENT_DISCONNECTED",
-          message: "Your opponent disconnected before the game started"
-        });
-        return;
-      }
-
-      whiteSocket.join(match.game.id);
-      blackSocket.join(match.game.id);
-
-      const sharedStart = {
-        gameId: match.game.id,
-        variant: match.game.variant,
-        mode: match.game.mode,
-        rated: match.game.rated,
-        fen: match.game.chess.fen()
-      };
-      whiteSocket.emit("game_start", { ...sharedStart, color: "white" });
-      blackSocket.emit("game_start", { ...sharedStart, color: "black" });
+      // Matched, cancelled, and game creation error states are published
+      // centrally by registerMatchmakingEvents / publishMatch.
     } catch (error) {
       console.error("Could not create a persisted game", error);
       socket.emit("matchmaking_error", {
@@ -482,6 +500,8 @@ function registerHandlers(
 
 module.exports = {
   registerGameServiceEvents,
+  registerMatchmakingEvents,
   registerHandlers,
-  startTimerTick
+  startTimerTick,
+  publishMatch
 };

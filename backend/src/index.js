@@ -31,6 +31,7 @@ const { PublicGameService } = require("./services/public-game");
 const { buildAllowedOrigins, isAllowedOrigin } = require("./utils/cors");
 const {
   registerGameServiceEvents,
+  registerMatchmakingEvents,
   registerHandlers,
   startTimerTick
 } = require("./websocket/handlers");
@@ -165,6 +166,7 @@ app.use(
 // ── WebSocket ────────────────────────────────────────
 
 registerGameServiceEvents(io, gameService);
+registerMatchmakingEvents(io, matchmakingService, gameService);
 io.on("connection", (socket) =>
   registerHandlers(io, socket, {
     gameService,
@@ -174,6 +176,12 @@ io.on("connection", (socket) =>
   })
 );
 startTimerTick(io, gameService);
+const matchmakingScanTimer = setInterval(() => {
+  void matchmakingService
+    .checkWaitingMatches()
+    .catch((error) => console.error("Matchmaking periodic scan failed", error));
+}, 1000);
+matchmakingScanTimer.unref?.();
 const challengeExpiryTimer = setInterval(() => {
   void challengeService
     .expire()

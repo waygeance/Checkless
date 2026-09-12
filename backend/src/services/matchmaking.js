@@ -15,79 +15,131 @@ class MatchmakingService extends EventEmitter {
     this.waitingPlayers = [];
     this.matchingSocketIds = new Set();
     this.cancelledMatchingSocketIds = new Set();
+    // In-flight reservation tracking to prevent identity races across asynchronous awaits
+    this.reservedUserIds = new Set();
+    this.socketGenerations = new Map();
+    this.socketUserMap = new Map();
   }
 
   async join({ socketId, user, identity, variant, mode = "CASUAL" }) {
     if (mode === "RANKED" && user.kind !== "HUMAN") {
       return { status: "ranked-auth-required" };
     }
+
+    // Reject immediately if the user or socket already has an active or finishing game
     if (
       this.gameService.findGameBySocketId(socketId) ||
       this.gameService.findGameByUserId(user.id)
     ) {
       return { status: "already-playing" };
     }
+
     if (this.matchingSocketIds.has(socketId)) {
       return { status: "matching" };
     }
 
-    this.leave(socketId);
-    if (mode === "RANKED" && this.prisma) {
-      const stats = await this.prisma.playerVariantStats.findUnique({
-        where: {
-          userId_variant: {
-            userId: user.id,
-            variant: {
-              "1s": "ONE_SECOND",
-              "3s": "THREE_SECONDS",
-              "5s": "FIVE_SECONDS"
-            }[variant]
-          }
-        }
-      });
-      user = { ...user, rating: stats?.rating ?? 1200 };
-    }
-
+    // Check if user is already reserved in an in-flight operation or in the waiting queue
     if (
+      this.reservedUserIds.has(user.id) ||
       this.waitingPlayers.some((candidate) => candidate.user.id === user.id)
     ) {
       return { status: "already-queued" };
     }
 
-    const waitingIndex = this.waitingPlayers.findIndex(
-      (candidate) =>
-        candidate.variant === variant &&
-        candidate.mode === mode &&
-        candidate.socketId !== socketId &&
-        candidate.user.id !== user.id &&
-        !this.matchingSocketIds.has(candidate.socketId) &&
-        (mode !== "RANKED" || this.ratingCompatible(candidate, { user }))
-    );
+    this.leave(socketId);
 
-    if (waitingIndex === -1) {
-      this.waitingPlayers.push({
+    // Reserve identity and generation counter BEFORE the first await
+    const generation = (this.socketGenerations.get(socketId) || 0) + 1;
+    this.socketGenerations.set(socketId, generation);
+    this.socketUserMap.set(socketId, user.id);
+    this.reservedUserIds.add(user.id);
+
+    try {
+      if (mode === "RANKED" && this.prisma) {
+        const stats = await this.prisma.playerVariantStats.findUnique({
+          where: {
+            userId_variant: {
+              userId: user.id,
+              variant: {
+                "1s": "ONE_SECOND",
+                "3s": "THREE_SECONDS",
+                "5s": "FIVE_SECONDS"
+              }[variant]
+            }
+          }
+        });
+        user = { ...user, rating: stats?.rating ?? 1200 };
+      }
+
+      // If the socket disconnected or cancelled while awaiting the database, invalidate work
+      if (this.socketGenerations.get(socketId) !== generation) {
+        this.reservedUserIds.delete(user.id);
+        this.socketUserMap.delete(socketId);
+        return { status: "cancelled" };
+      }
+
+      // Re-verify that user has not started playing during the await
+      if (
+        this.gameService.findGameBySocketId(socketId) ||
+        this.gameService.findGameByUserId(user.id)
+      ) {
+        this.reservedUserIds.delete(user.id);
+        this.socketUserMap.delete(socketId);
+        return { status: "already-playing" };
+      }
+
+      const waitingIndex = this.waitingPlayers.findIndex(
+        (candidate) =>
+          candidate.variant === variant &&
+          candidate.mode === mode &&
+          candidate.socketId !== socketId &&
+          candidate.user.id !== user.id &&
+          !this.matchingSocketIds.has(candidate.socketId) &&
+          (mode !== "RANKED" || this.ratingCompatible(candidate, { user }))
+      );
+
+      if (waitingIndex === -1) {
+        // Enqueued: waitingPlayers now holds the reservation, so we can clear socketUserMap
+        this.waitingPlayers.push({
+          socketId,
+          user,
+          identity,
+          variant,
+          mode,
+          queuedAt: Date.now()
+        });
+        this.socketUserMap.delete(socketId);
+        return { status: "waiting" };
+      }
+
+      const [whitePlayer] = this.waitingPlayers.splice(waitingIndex, 1);
+      const blackPlayer = {
         socketId,
         user,
         identity,
         variant,
         mode,
         queuedAt: Date.now()
-      });
-      return { status: "waiting" };
-    }
+      };
+      this.socketUserMap.delete(socketId);
 
-    const [whitePlayer] = this.waitingPlayers.splice(waitingIndex, 1);
-    const blackPlayer = { socketId, user, identity, variant, mode, queuedAt: Date.now() };
-    return this.startMatch(whitePlayer, blackPlayer);
+      return this.startMatch(whitePlayer, blackPlayer);
+    } catch (error) {
+      this.reservedUserIds.delete(user.id);
+      this.socketUserMap.delete(socketId);
+      throw error;
+    }
   }
 
   /**
    * Starts a game for two paired players and publishes the match outcome.
-   * Used both for immediate join matches and for matches found during queue scans.
+   * Retains socket and user identity reservations throughout creation.
    */
   async startMatch(whitePlayer, blackPlayer) {
     this.matchingSocketIds.add(whitePlayer.socketId);
     this.matchingSocketIds.add(blackPlayer.socketId);
+    this.reservedUserIds.add(whitePlayer.user.id);
+    this.reservedUserIds.add(blackPlayer.user.id);
 
     try {
       const game = await this.gameService.startCasualGame({
@@ -115,6 +167,8 @@ class MatchmakingService extends EventEmitter {
     } finally {
       this.matchingSocketIds.delete(whitePlayer.socketId);
       this.matchingSocketIds.delete(blackPlayer.socketId);
+      this.reservedUserIds.delete(whitePlayer.user.id);
+      this.reservedUserIds.delete(blackPlayer.user.id);
       this.cancelledMatchingSocketIds.delete(whitePlayer.socketId);
       this.cancelledMatchingSocketIds.delete(blackPlayer.socketId);
     }
@@ -180,6 +234,17 @@ class MatchmakingService extends EventEmitter {
   }
 
   leave(socketId) {
+    // Invalidate any in-flight join generation for this socket
+    const prevGen = this.socketGenerations.get(socketId) || 0;
+    this.socketGenerations.set(socketId, prevGen + 1);
+
+    // Release any in-flight user reservation tied to this socket
+    const reservedUserId = this.socketUserMap.get(socketId);
+    if (reservedUserId) {
+      this.reservedUserIds.delete(reservedUserId);
+      this.socketUserMap.delete(socketId);
+    }
+
     const index = this.waitingPlayers.findIndex(
       (candidate) => candidate.socketId === socketId
     );
@@ -190,7 +255,11 @@ class MatchmakingService extends EventEmitter {
       }
       return null;
     }
-    return this.waitingPlayers.splice(index, 1)[0];
+    const [removed] = this.waitingPlayers.splice(index, 1);
+    if (removed?.user?.id) {
+      this.reservedUserIds.delete(removed.user.id);
+    }
+    return removed;
   }
 }
 

@@ -107,7 +107,7 @@ class LiveGameService extends EventEmitter {
 
   findGameBySocketId(socketId) {
     for (const game of this.games.values()) {
-      if (game.status !== "active") continue;
+      if (game.status !== "active" && game.status !== "finishing") continue;
       if (
         game.players.white.socketId === socketId ||
         game.players.black.socketId === socketId
@@ -120,7 +120,7 @@ class LiveGameService extends EventEmitter {
 
   findGameByUserId(userId) {
     for (const game of this.games.values()) {
-      if (game.status !== "active") continue;
+      if (game.status !== "active" && game.status !== "finishing") continue;
       if (
         game.players.white.userId === userId ||
         game.players.black.userId === userId

@@ -185,6 +185,19 @@ class GamePersistenceService {
         });
       }
 
+      // Settle any challenge linked to this game
+      if (transaction.challenge?.updateMany) {
+        await transaction.challenge.updateMany({
+          where: { gameId },
+          data: {
+            status:
+              status === "ABORTED" || status === "INTERRUPTED"
+                ? "CANCELED"
+                : "COMPLETED"
+          }
+        });
+      }
+
       // Statistics are updated in the same transaction and only after the
       // ACTIVE -> terminal transition succeeds, making finalization idempotent.
       const ratingByUser = new Map();

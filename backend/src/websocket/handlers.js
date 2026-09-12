@@ -11,6 +11,7 @@ const {
   findGamePayloadSchema,
   abortMatchPayloadSchema,
   gameActionPayloadSchema,
+  readyChallengePayloadSchema,
   validateSocketPayload
 } = require("../validators/move");
 
@@ -66,7 +67,7 @@ function registerGameServiceEvents(io, gameService) {
 function registerHandlers(
   io,
   socket,
-  { gameService, matchmakingService, presenceService }
+  { gameService, matchmakingService, presenceService, challengeService }
 ) {
   console.log("Player connected:", socket.id);
   const userId = socket.data.user?.id;
@@ -221,6 +222,81 @@ function registerHandlers(
       socket.emit("matchmaking_error", {
         reason: error.code || "GAME_CREATION_FAILED",
         message: "The match could not be started. Please try again."
+      });
+    }
+  });
+
+  socket.on("ready_challenge", async (payload) => {
+    const parsed = validateSocketPayload(readyChallengePayloadSchema, payload);
+    if (parsed.error) {
+      socket.emit("challenge_error", {
+        reason: "INVALID_PAYLOAD",
+        message: parsed.error
+      });
+      return;
+    }
+
+    if (!socket.data.user?.id) {
+      socket.emit("challenge_error", {
+        reason: "AUTH_REQUIRED",
+        message: "You must be logged in to join a challenge"
+      });
+      return;
+    }
+
+    if (!challengeService) return;
+
+    try {
+      const result = await challengeService.readyParticipant({
+        code: parsed.data.code,
+        user: socket.data.user,
+        socketId: socket.id,
+        identity: socket.data.identity || {
+          type: "human",
+          id: socket.data.user.id
+        },
+        gameService
+      });
+
+      if (result.status === "waiting") {
+        socket.emit("challenge_waiting", {
+          message: "Waiting for the other player to join..."
+        });
+        return;
+      }
+
+      if (result.status === "started") {
+        const whiteSocket = io.sockets.sockets.get(result.whitePlayer.socketId);
+        const blackSocket = io.sockets.sockets.get(result.blackPlayer.socketId);
+
+        if (!whiteSocket || !blackSocket) {
+          await gameService.abortGame(result.game.id);
+          const connectedSocket = whiteSocket || blackSocket;
+          connectedSocket?.emit("challenge_error", {
+            reason: "OPPONENT_DISCONNECTED",
+            message: "Your opponent disconnected before the game started"
+          });
+          return;
+        }
+
+        whiteSocket.join(result.game.id);
+        blackSocket.join(result.game.id);
+
+        const sharedStart = {
+          gameId: result.game.id,
+          variant: result.game.variant,
+          mode: result.game.mode,
+          rated: result.game.rated,
+          fen: result.game.chess.fen()
+        };
+        whiteSocket.emit("game_start", { ...sharedStart, color: "white" });
+        blackSocket.emit("game_start", { ...sharedStart, color: "black" });
+      }
+    } catch (error) {
+      console.error("Could not start challenge match", error);
+      socket.emit("challenge_error", {
+        reason: error.code || "CHALLENGE_START_FAILED",
+        message: error.message || "Failed to start challenge match"
       });
     }
   });
@@ -388,6 +464,7 @@ function registerHandlers(
       });
     }
     matchmakingService.leave(socket.id);
+    challengeService?.unreadyParticipant(socket.id);
 
     const game = gameService.findGameBySocketId(socket.id);
     if (!game) return;

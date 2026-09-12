@@ -169,7 +169,8 @@ io.on("connection", (socket) =>
   registerHandlers(io, socket, {
     gameService,
     matchmakingService,
-    presenceService
+    presenceService,
+    challengeService
   })
 );
 startTimerTick(io, gameService);

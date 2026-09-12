@@ -200,19 +200,37 @@ class GamePersistenceService {
 
       // Statistics are updated in the same transaction and only after the
       // ACTIVE -> terminal transition succeeds, making finalization idempotent.
+      //
+      // F05 Fix: Lock participants in canonical user order to serialize concurrent
+      // settlements sharing players, and avoid updating ratings for unrated or no-winner games.
+      const userIds = finalizedGame.participants
+        .map((p) => p.userId)
+        .filter(Boolean);
+      const sortedUserIds = [...new Set(userIds)].sort();
+
+      // Acquire canonical user row locks if supported by the database transaction
+      for (const uid of sortedUserIds) {
+        if (transaction.$executeRaw) {
+          await transaction.$executeRaw`SELECT 1 FROM "User" WHERE "id" = ${uid} FOR UPDATE`;
+        }
+      }
+
+      // Read fresh ratings for all participants under lock
       const ratingByUser = new Map();
-      for (const participant of finalizedGame.participants) {
-        if (!participant.userId) continue;
+      for (const uid of sortedUserIds) {
         const stats = await transaction.playerVariantStats.findUnique({
           where: {
             userId_variant: {
-              userId: participant.userId,
+              userId: uid,
               variant: finalizedGame.variant
             }
           }
         });
-        ratingByUser.set(participant.userId, stats?.rating ?? 1200);
+        ratingByUser.set(uid, stats?.rating ?? 1200);
       }
+
+      const isRatedWithWinner = Boolean(finalizedGame.rated && winnerColor);
+
       for (const participant of finalizedGame.participants) {
         if (!participant.userId) continue;
         const isWinner = winnerColor && participant.color === winnerColor;
@@ -226,10 +244,10 @@ class GamePersistenceService {
           : 1200;
         const expected = 1 / (1 + 10 ** ((opponentRating - before) / 400));
         const actual = isWinner ? 1 : isLoser ? 0 : 0.5;
-        const after =
-          finalizedGame.rated && winnerColor
-            ? Math.round(before + 32 * (actual - expected))
-            : before;
+        const after = isRatedWithWinner
+          ? Math.round(before + 32 * (actual - expected))
+          : before;
+
         await transaction.playerVariantStats.upsert({
           where: {
             userId_variant: {
@@ -243,7 +261,7 @@ class GamePersistenceService {
             totalWins: isWinner ? 1 : 0,
             totalLosses: isLoser ? 1 : 0,
             totalNoResults: winnerColor ? 0 : 1,
-            rating: after,
+            rating: isRatedWithWinner ? after : 1200,
             rankedWins: finalizedGame.rated && isWinner ? 1 : 0,
             rankedLosses: finalizedGame.rated && isLoser ? 1 : 0,
             rankedNoResults: finalizedGame.rated && !winnerColor ? 1 : 0,
@@ -253,7 +271,9 @@ class GamePersistenceService {
             totalWins: isWinner ? { increment: 1 } : undefined,
             totalLosses: isLoser ? { increment: 1 } : undefined,
             totalNoResults: winnerColor ? undefined : { increment: 1 },
-            rating: after,
+            // Only update rating if this is a rated game with a decisive winner.
+            // Unrated games and no-result endings must never overwrite active ratings.
+            rating: isRatedWithWinner ? after : undefined,
             rankedWins:
               finalizedGame.rated && isWinner ? { increment: 1 } : undefined,
             rankedLosses:
@@ -265,7 +285,7 @@ class GamePersistenceService {
             lastPlayedAt: finalizedGame.endedAt
           }
         });
-        if (finalizedGame.rated && winnerColor) {
+        if (isRatedWithWinner) {
           await transaction.gameParticipant.update({
             where: { id: participant.id },
             data: {

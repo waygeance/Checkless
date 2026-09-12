@@ -343,7 +343,32 @@ function registerHandlers(
     const opponentColor = playerColor === "white" ? "black" : "white";
     const opponentSocketId = game.players[opponentColor].socketId;
 
+    const hasMoves =
+      game.lastSequence > 0 ||
+      (Array.isArray(game.moveHistory) && game.moveHistory.length > 0);
+
     try {
+      // Pre-play policy: Abort without penalty is only permitted before any moves land.
+      // Once moves have been played, an abort is treated as a resignation to prevent
+      // rated-loss evasion.
+      if (hasMoves) {
+        const result = await gameService.resignGame(game.id, socket.id);
+        if (result) {
+          socket.leave(game.id);
+          io.sockets.sockets.get(opponentSocketId)?.leave(game.id);
+
+          const gameOverPayload = {
+            reason: "RESIGNATION",
+            winner: result.winnerColor,
+            fen: result.game.chess.fen()
+          };
+          socket.emit("game_over", gameOverPayload);
+          io.to(opponentSocketId).emit("game_over", gameOverPayload);
+        }
+        return;
+      }
+
+      // Pre-play abort: no moves made. Both storage and clients agree winner is null.
       await gameService.abortGame(game.id);
       socket.leave(game.id);
       io.sockets.sockets.get(opponentSocketId)?.leave(game.id);
@@ -352,8 +377,8 @@ function registerHandlers(
         message: "Match aborted. You are back in the lobby."
       });
       io.to(opponentSocketId).emit("game_over", {
-        reason: "opponent_aborted",
-        winner: opponentColor,
+        reason: "ABORTED",
+        winner: null,
         fen: game.chess.fen()
       });
     } catch (error) {

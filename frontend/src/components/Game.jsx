@@ -497,8 +497,8 @@ export default function Game({ initialVariant = "3s", autoStart = false }) {
       const resultMessage =
         data.reason === "KING_CAPTURED"
           ? `${data.winner} wins by capturing the king!`
-          : data.reason === "opponent_aborted"
-            ? "Opponent aborted the match."
+          : data.reason === "opponent_aborted" || data.reason === "ABORTED"
+            ? "Match was aborted."
             : data.reason === "DISCONNECT_FORFEIT"
               ? "Opponent did not return and you win by forfeit."
               : data.reason === "RESIGNATION"
